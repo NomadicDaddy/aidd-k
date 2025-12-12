@@ -1,11 +1,11 @@
-# AutoK2 - Autonomous Development Orchestrator
+# AutoK - Autonomous Development Orchestrator
 
 A bash shell script that orchestrates autonomous development sessions using Kilocode AI.
 
 ## Usage
 
 ```bash
-./autok2.sh --project-dir <dir> --spec <file> [--max-iterations <num>] [--timeout <seconds>] [--model <model>]
+./autok.sh --project-dir <dir> --spec <file> [--max-iterations <num>] [--timeout <seconds>] [--model <model>]
 ```
 
 ### Required Arguments
@@ -14,7 +14,7 @@ A bash shell script that orchestrates autonomous development sessions using Kilo
 
 ### Optional Arguments
 - `--max-iterations`: Number of iterations to run (unlimited if not specified)
-- `--timeout`: Timeout in seconds for each kilocode session (default: 6000)
+- `--timeout`: Timeout in seconds for each kilocode session (default: 600)
 - `--model`: Model to use (optional)
 
 ## How It Works
@@ -32,7 +32,7 @@ The script runs in a loop based on max-iterations:
 ## Example
 
 ```bash
-./autok2.sh --project-dir ../auto-test --max-iterations 1 --spec ./specs/heystack.txt --timeout 600
+./autok.sh --project-dir ../auto-test --max-iterations 1 --spec ./specs/heystack.txt --timeout 6000
 ```
 
 ## Prompts Used
@@ -44,8 +44,8 @@ Both prompts are executed from within the project directory to ensure proper con
 
 ## PowerShell Version
 
-A PowerShell version (`autok2.ps1`) is also available with the same functionality:
+A PowerShell version (`autok.ps1`) is also available with the same functionality:
 
 ```powershell
-./autok2.ps1 -ProjectDir "../auto-test" -MaxIterations 1 -Spec "./specs/heystack.txt" -Timeout 600
+./autok.ps1 -ProjectDir "../auto-test" -MaxIterations 1 -Spec "./specs/heystack.txt" -Timeout 6000
 ```

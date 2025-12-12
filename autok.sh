@@ -5,7 +5,7 @@ MODEL=""
 SPEC_FILE=""
 MAX_ITERATIONS=""  # Empty means unlimited
 PROJECT_DIR=""
-TIMEOUT="6000"  # Default to 6000 seconds
+TIMEOUT="600"  # Default to 600 seconds
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --project-dir      Project directory (required)"
             echo "  --spec             Specification file (required)"
             echo "  --max-iterations   Maximum iterations (optional, unlimited if not specified)"
-            echo "  --timeout          Timeout in seconds (optional, default: 6000)"
+            echo "  --timeout          Timeout in seconds (optional, default: 600)"
             echo "  --model            Model to use (optional)"
             echo ""
             exit 0
@@ -56,20 +56,24 @@ if [[ -z "$PROJECT_DIR" || -z "$SPEC_FILE" ]]; then
     exit 1
 fi
 
-# Check if project directory exists
+# Ensure project directory exists (create if missing)
 if [[ ! -d "$PROJECT_DIR" ]]; then
-    echo "Error: Project directory '$PROJECT_DIR' does not exist"
-    exit 1
+    echo "Project directory '$PROJECT_DIR' does not exist; creating it..."
+    mkdir -p "$PROJECT_DIR"
+
+    # Copy scaffolding files to the new project directory
+    echo "Copying scaffolding files to '$PROJECT_DIR'..."
+    cp -r "$SCRIPT_DIR/scaffolding/"* "$PROJECT_DIR/"
 fi
+
+# Get absolute path to script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check if spec file exists
 if [[ ! -f "$SPEC_FILE" ]]; then
     echo "Error: Spec file '$SPEC_FILE' does not exist"
     exit 1
 fi
-
-# Get absolute path to script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Define the paths to check
 SPEC_CHECK_PATH="$PROJECT_DIR/.autok/spec.txt"

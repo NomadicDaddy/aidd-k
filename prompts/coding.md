@@ -64,11 +64,17 @@ for the application you're building.
 
 ### STEP 2: START SERVERS (IF NOT RUNNING)
 
-If `init.sh` exists, run it:
+slug: project_dir basename (e.g., "myapp" for directory "myapp/")
+name: application name from spec
+description: application description from spec
+frontendPort: default 3330 unless specified in spec
+backendPort: default 3331 unless specified in spec
+
+If `scripts/setup.sh` exists, run it:
 
 ```bash
-chmod +x init.sh
-./init.sh
+chmod +x scripts/setup.sh
+./scripts/setup.sh --slug {slug} --name "{name}" --description "{description}" --frontend-port {frontendPort} --backend-port {backendPort}
 ```
 
 Otherwise, start servers manually using execute_command and document the process.

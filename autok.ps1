@@ -11,15 +11,20 @@ param(
 	[string]$Spec,
 
 	[Parameter(Mandatory = $false)]
-	[int]$Timeout = 6000,  # Default to 6000 seconds
+	[int]$Timeout = 600,  # Default to 600 seconds
 
 	[string]$Model = ''
 )
 
-# Check if project directory exists
+# Ensure project directory exists (create if missing)
 if (-not (Test-Path $ProjectDir -PathType Container)) {
-	Write-Error "Error: Project directory '$ProjectDir' does not exist"
-	exit 1
+	Write-Host "Project directory '$ProjectDir' does not exist; creating it..."
+	New-Item -ItemType Directory -Path $ProjectDir -Force | Out-Null
+
+	# Copy scaffolding files to the new project directory
+	Write-Host "Copying scaffolding files to '$ProjectDir'..."
+	$ScaffoldingSource = Join-Path $PSScriptRoot 'scaffolding'
+	Copy-Item -Path "$ScaffoldingSource/*" -Destination $ProjectDir -Recurse -Force
 }
 
 # Check if spec file exists

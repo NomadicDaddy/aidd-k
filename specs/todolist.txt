@@ -1,0 +1,269 @@
+<project_specification>
+  <project_name>TodoList - Small Full-Stack Todo Application</project_name>
+
+  <overview>
+    Build a small, polished todo list application with a TypeScript/React 19.2 frontend and a TypeScript/Express
+    backend. The app should support creating, viewing, updating, completing, and deleting todos, plus basic
+    organization (filters + optional lists/tags). The focus is correctness, clean UX, accessible UI, and a simple
+    maintainable API.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <language>TypeScript</language>
+      <framework>React 19.2 (with Vite)</framework>
+      <styling>Tailwind CSS (preferred) or minimal CSS modules</styling>
+      <state_management>React hooks; optional lightweight store (Zustand) if needed</state_management>
+      <data_fetching>fetch + small API client wrapper</data_fetching>
+      <routing>Optional (single-page is fine); React Router if adding multiple views</routing>
+      <testing>Vitest + React Testing Library</testing>
+    </frontend>
+
+    <backend>
+      <language>TypeScript</language>
+      <runtime>Node.js</runtime>
+      <framework>Express</framework>
+      <database>SQLite (better-sqlite3) OR Postgres (Prisma) if already available</database>
+      <validation>Zod for request validation</validation>
+      <testing>Vitest or Jest + Supertest</testing>
+      <observability>Request logging + structured error responses</observability>
+    </backend>
+
+    <communication>
+      <api>RESTful JSON endpoints</api>
+      <auth>None required for MVP (single-user local app); optional simple API key header for protection</auth>
+      <cors>Enabled for local dev</cors>
+    </communication>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Frontend runs via Vite dev server
+      - Backend runs as a separate process on a different port
+      - Configure frontend API base URL via VITE_API_BASE_URL
+      - Backend stores SQLite database file under ./server/data (or configurable via env)
+    </environment_setup>
+  </prerequisites>
+
+  <core_features>
+    <todo_management>
+      - Create a todo with: title (required), optional description, optional due date
+      - Edit todo title/description/due date
+      - Mark complete/incomplete
+      - Delete todo (with confirmation)
+      - Persist todos via backend (no localStorage-only solution)
+      - Optimistic UI for fast interactions with rollback on failure
+    </todo_management>
+
+    <organization>
+      - Filters: All, Active, Completed
+      - Sort: created_at (default), due_date, title
+      - Optional: lists/projects (e.g., “Personal”, “Work”)
+      - Optional: tags (multi-select) with simple string tags
+      - Search by title/description
+    </organization>
+
+    <ui_ux>
+      - Clean layout: header + main list + footer stats
+      - Keyboard-friendly: Enter to add, Escape to cancel edit
+      - Inline editing (double click or edit button)
+      - Clear empty states (no todos yet, no matches for filter/search)
+      - Loading and error states for all API calls
+      - Accessible controls with labels, focus management, and ARIA where needed
+      - Responsive: works well on mobile widths
+    </ui_ux>
+
+    <quality_and_safety>
+      - Server-side validation for all writes
+      - Consistent error format: { error: { code, message, details? } }
+      - Avoid silent failures; surface actionable messages in UI
+      - Basic rate limiting optional (nice-to-have)
+    </quality_and_safety>
+  </core_features>
+
+  <data_model>
+    <entities>
+      <todo>
+        - id (string, uuid)
+        - title (string, 1..200)
+        - description (string, optional, 0..2000)
+        - status ("active" | "completed")
+        - due_date (ISO string, optional)
+        - created_at (ISO string)
+        - updated_at (ISO string)
+        - completed_at (ISO string, optional)
+        - list_id (string, optional; if lists enabled)
+      </todo>
+
+      <list>
+        - id (string, uuid)
+        - name (string, 1..80)
+        - created_at (ISO string)
+        - updated_at (ISO string)
+      </list>
+
+      <tag>
+        - id (string, uuid) OR use string tag names only (simpler)
+        - name (string, 1..40)
+      </tag>
+
+      <todo_tag>
+        - todo_id
+        - tag_id OR tag_name
+      </todo_tag>
+    </entities>
+  </data_model>
+
+  <database_schema>
+    <tables>
+      <todos>
+        - id TEXT PRIMARY KEY
+        - title TEXT NOT NULL
+        - description TEXT
+        - status TEXT NOT NULL CHECK(status IN ('active','completed'))
+        - due_date TEXT
+        - created_at TEXT NOT NULL
+        - updated_at TEXT NOT NULL
+        - completed_at TEXT
+        - list_id TEXT
+      </todos>
+
+      <lists>
+        - id TEXT PRIMARY KEY
+        - name TEXT NOT NULL
+        - created_at TEXT NOT NULL
+        - updated_at TEXT NOT NULL
+      </lists>
+
+      <tags>
+        - id TEXT PRIMARY KEY
+        - name TEXT NOT NULL UNIQUE
+      </tags>
+
+      <todo_tags>
+        - todo_id TEXT NOT NULL
+        - tag_id TEXT NOT NULL
+        - PRIMARY KEY (todo_id, tag_id)
+      </todo_tags>
+
+      <indexes>
+        - CREATE INDEX idx_todos_status ON todos(status)
+        - CREATE INDEX idx_todos_due_date ON todos(due_date)
+        - CREATE INDEX idx_todos_updated_at ON todos(updated_at)
+      </indexes>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <health>
+      - GET /api/health
+    </health>
+
+    <todos>
+      - GET /api/todos
+        Query params: status=all|active|completed, q=search, sort=created_at|due_date|title, order=asc|desc, listId?
+      - POST /api/todos
+        Body: { title, description?, dueDate?, listId?, tags? }
+      - GET /api/todos/:id
+      - PUT /api/todos/:id
+        Body: { title?, description?, dueDate?, status?, listId?, tags? }
+      - DELETE /api/todos/:id
+      - POST /api/todos/:id/toggle
+        Body: { completed: boolean }
+      - POST /api/todos/clear-completed
+    </todos>
+
+    <lists>
+      - GET /api/lists
+      - POST /api/lists
+      - PUT /api/lists/:id
+      - DELETE /api/lists/:id
+    </lists>
+
+    <tags_optional>
+      - GET /api/tags
+    </tags_optional>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      - Header: app title, list selector (optional), search input
+      - Main: todo input row + todo list
+      - Footer: items left, filter pills (All/Active/Completed), “Clear completed”
+      - Optional right-side panel or modal: todo details editing
+    </main_structure>
+
+    <components>
+      <todo_input>
+        - Single-line input for title; optional expand for description
+        - Add button + Enter key submit
+        - Disabled while saving
+      </todo_input>
+
+      <todo_item>
+        - Checkbox for complete
+        - Title + optional due date badge
+        - Edit action (inline)
+        - Delete action with confirmation
+      </todo_item>
+
+      <filters>
+        - All / Active / Completed
+        - Shows counts and current selection
+      </filters>
+    </components>
+  </ui_layout>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Backend foundation</title>
+      <tasks>
+        - Scaffold Express + TypeScript
+        - Add health endpoint
+        - Add SQLite connection + schema initialization
+        - Implement todos CRUD with validation (Zod)
+        - Add error handler + consistent error response
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>Frontend foundation</title>
+      <tasks>
+        - Scaffold React 19.2 + Vite + TypeScript
+        - Create API client + typed DTOs
+        - Build base layout and todo list rendering
+        - Implement create/toggle/delete flows
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>Polish UX and correctness</title>
+      <tasks>
+        - Add edit flow, filters, sorting, and search
+        - Add loading/error states + optimistic updates
+        - Add accessibility and keyboard shortcuts
+        - Add tests for key API routes and core UI behaviors
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - All todo CRUD operations work reliably against the backend
+      - Filters/search/sort behave correctly and remain consistent with server state
+      - Data persists across page reloads
+    </functionality>
+
+    <user_experience>
+      - UI is responsive and keyboard accessible
+      - Clear feedback for loading, success, and error conditions
+      - Interactions feel fast (optimistic UI where appropriate)
+    </user_experience>
+
+    <technical_quality>
+      - Type-safe DTOs between frontend and backend
+      - Request validation on backend for all write endpoints
+      - Tests cover core flows (at least: create, toggle, edit, delete, filter)
+    </technical_quality>
+  </success_criteria>
+</project_specification>
