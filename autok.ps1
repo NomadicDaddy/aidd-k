@@ -55,13 +55,13 @@ if ($MaxIterations -eq 0) {
 			Copy-Item $Spec $SpecCheckPath
 			# Send initializer prompt from project directory
 			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode architect --auto --json --workspace $ProjectDir --timeout $Timeout --nosplash
+			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
 			Pop-Location
 		} else {
 			Write-Host 'Required files found, sending coding prompt...'
 			# Send coding prompt from project directory
 			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --json --workspace $ProjectDir --timeout $Timeout --nosplash
+			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
 			Pop-Location
 		}
 
@@ -82,13 +82,13 @@ if ($MaxIterations -eq 0) {
 			Copy-Item $Spec $SpecCheckPath
 			# Send initializer prompt from project directory
 			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode architect --auto --json --workspace $ProjectDir --timeout $Timeout --nosplash
+			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
 			Pop-Location
 		} else {
 			Write-Host 'Required files found, sending coding prompt...'
 			# Send coding prompt from project directory
 			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --json --workspace $ProjectDir --timeout $Timeout --nosplash
+			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
 			Pop-Location
 		}
 

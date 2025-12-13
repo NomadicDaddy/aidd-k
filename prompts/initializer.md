@@ -85,9 +85,9 @@ Features can ONLY be marked as passing (change "passes": false to "passes": true
 Never remove features, never edit descriptions, never modify testing steps.
 This ensures no functionality is missed.
 
-### SECOND TASK: Create scripts/setup.sh
+### SECOND TASK: Create scripts/setup.ts
 
-If a `scripts/setup.sh` file does not exist, create one that initializes the development environment:
+If a `scripts/setup.ts` file does not exist, create one that initializes the development environment:
 
 1. Install any required dependencies
 2. Start any necessary servers or services
@@ -100,10 +100,10 @@ Base the script on the technology stack specified in `.autok/spec.txt`.
 Create a git repository and make your first commit with:
 
 - .autok/feature_list.json (complete with all 20 features)
-- scripts/setup.sh (environment setup script)
+- scripts/setup.ts (environment setup script)
 - README.md (project overview and setup instructions)
 
-Commit message: "Initial setup: .autok/feature_list.json, scripts/setup.sh, and project structure"
+Commit message: "Initial setup: .autok/feature_list.json, scripts/setup.ts, and project structure"
 
 ### FOURTH TASK: Create Project Structure
 
@@ -125,7 +125,7 @@ Before your context fills up:
 **DO NOT IMPLEMENT ANY FEATURES**
 **DO NOT WRITE APPLICATION CODE**
 **DO NOT START SERVERS**
-**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.sh**
+**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.ts**
 
 The next agent will continue from here with a fresh context window and will have access to your multi-mode coordination capabilities.
 
@@ -133,7 +133,7 @@ The next agent will continue from here with a fresh context window and will have
 
 **Remember:** You have unlimited time across many sessions. Focus on quality over speed. Production-ready is the goal.
 
-**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.sh, STOP. Do nothing else.
+**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.ts, STOP. Do nothing else.
 
 **STOP IMMEDIATELY AFTER COMPLETING TASKS ABOVE**
 
@@ -148,7 +148,7 @@ Before your context fills up:
 **DO NOT IMPLEMENT ANY FEATURES**
 **DO NOT WRITE APPLICATION CODE**
 **DO NOT START SERVERS**
-**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.sh**
+**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.ts**
 
 The next agent will continue from here with a fresh context window and will have access to your multi-mode coordination capabilities.
 
@@ -157,4 +157,4 @@ The next agent will continue from here with a fresh context window and will have
 **Remember:** You have unlimited time across many sessions. Focus on
 quality over speed. Production-ready is the goal.
 
-**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.sh, STOP. Do nothing else.
+**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.ts, STOP. Do nothing else.
