@@ -7,14 +7,14 @@ This is a FRESH context window - you have no memory of previous sessions.
 
 Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools that are actually available:
 
-| Group    | Tools                                                                              | Purpose            |
-| -------- | ---------------------------------------------------------------------------------- | ------------------ |
-| Read     | read_file, search_files, list_files, list_code_definition_names                    | Code exploration   |
-| Edit     | apply_diff, delete_file, write_to_file                                             | File modifications |
-| Browser  | browser_action                                                                     | Web automation     |
-| Command  | execute_command                                                                    | System commands    |
-| MCP      | use_mcp_tool, access_mcp_resource                                                  | External services  |
-| Workflow | switch_mode, new_task, ask_followup_question, attempt_completion, update_todo_list | Task management    |
+| Group    | Tools                                                           | Purpose            |
+| -------- | --------------------------------------------------------------- | ------------------ |
+| Read     | read_file, search_files, list_files, list_code_definition_names | Code exploration   |
+| Edit     | apply_diff, delete_file                                         | File modifications |
+| Browser  | browser_action                                                  | Web automation     |
+| Command  | execute_command                                                 | System commands    |
+| MCP      | use_mcp_tool, access_mcp_resource                               | External services  |
+| Workflow | switch_mode, new_task, attempt_completion, update_todo_list     | Task management    |
 
 ## Usage
 
@@ -23,7 +23,7 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 - Tool names are exact and case-sensitive (e.g. use `delete_file`, not `deleteFile`).
 - When using `execute_command`, never pass a `cwd` value of `null`/`"null"`. If you want the workspace default working directory, **omit `cwd` entirely**.
 - Once you identify the project root, prefer running all `execute_command` calls with an explicit `cwd` set to that project root.
-- Prefer using `read_file` / `write_to_file` / `apply_diff` / `delete_file` for file operations. Avoid using shell built-ins like `del`/`copy` unless you cannot accomplish the same reliably with the tools.
+- Prefer using `read_file` / `apply_diff` / `delete_file` for file operations. Use `execute_command` with shell redirection (e.g., `Set-Content` in PowerShell) when creating complete files or when tools misbehave.
 - Never invent tool names - only use those listed here
 
 ## Common Patterns
@@ -40,14 +40,14 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 ### 1. Before ANY Edit:
 
 - ALWAYS `read_file` immediately before editing to get current content
-- For files >100 lines or schema files, prefer `write_to_file` over `apply_diff`
+- For files >100 lines or schema files, use `apply_diff` with explicit context or fall back to `execute_command` with shell redirection
 - Understand the full file structure before making changes
 
 ### 2. During Editing:
 
 - **For small changes (1-20 lines):** Use `apply_diff` with explicit context
-- **For large changes or schema files:** Use `write_to_file` with complete content
-- **For JSON files:** Use `write_to_file` to prevent parsing errors
+- **For large changes or schema files:** Use `apply_diff` with sufficient context or `execute_command` with shell redirection
+- **For JSON files:** Use `apply_diff` with precise context or `execute_command` with shell redirection
 - Include sufficient context in `apply_diff` (minimum 3 lines before/after)
 
 ### 3. After ANY Edit:
@@ -61,13 +61,13 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 ```bash
 # If file is corrupted after editing:
 git checkout -- <file-path>
-# Then retry with a different approach (e.g., write_to_file instead of apply_diff)
+# Then retry with a different approach (e.g., execute_command with shell redirection instead of apply_diff)
 ```
 
 ### 5. Special Cases:
 
-- **Schema files:** Always use `write_to_file` for model changes
-- **Configuration files:** Use `write_to_file` to preserve structure
+- **Schema files:** Use `apply_diff` for model changes or `execute_command` for complete rewrites
+- **Configuration files:** Use `apply_diff` to preserve structure or `execute_command` for complete rewrites
 - **Multiple related edits:** Use `multi_edit` for atomic changes
 - **Large files:** Break into smaller, targeted edits
 
@@ -83,12 +83,14 @@ This prevents the catastrophic issue where the implementation diverges from the 
 
 1. **Core Models Verification:**
     - Read `.autok/spec.txt` to identify required data models (e.g., Todo, User, Tag)
+    - Use `list_code_definition_names` on backend directories to identify existing models
     - Check `schema.prisma` or equivalent for these models
     - Verify NO duplicate models or commented-out code blocks exist
     - Ensure schema compiles without errors
 
 2. **Route Structure Verification:**
     - Identify required API endpoints from the spec
+    - Use `list_code_definition_names` on backend/src/routes/ to map existing route handlers
     - Verify route files exist and match spec requirements
     - Check for missing core functionality (e.g., todo CRUD operations)
 
@@ -117,15 +119,69 @@ ls -la backend/src/routes/
 
 **If validation fails, document the issues and do NOT proceed with new features.**
 
+### STEP 0.5: ASSESS SCAFFOLDING COMPLETENESS (NEW MANDATORY STEP)
+
+**CRITICAL: Before implementing features, validate that the scaffolding matches the specification.**
+
+This prevents building features on an incomplete foundation (e.g., trying to implement todo features when the todo models don't exist).
+
+**Scaffolding Assessment Checklist:**
+
+1. **Check for Scaffolding Manifest:**
+    - Look for `.autok/scaffolding-manifest.json` created by initializer
+    - If missing, proceed with manual assessment
+
+2. **Core Structure Validation:**
+    - Verify all required directories exist (backend/, frontend/, etc.)
+    - Check for package.json files in appropriate locations
+    - Confirm configuration files are present
+
+3. **Spec-Specific Scaffolding:**
+    - Verify data models from spec exist in schema files
+    - Use `list_code_definition_names` on backend/ and frontend/ to map existing components
+    - Check for basic route files mentioned in spec
+    - Ensure placeholder components for major features exist
+
+4. **Create Assessment Report:**
+
+    ```
+    SCAFFOLDING ASSESSMENT: {date}
+    ✓ Present: [list items found]
+    ✗ Missing: [list items missing]
+    ⚠ Partial: [items that exist but incomplete]
+    BLOCKERS: [items that prevent feature work]
+    ```
+
+5. **Handle Missing Scaffolding:**
+    - If critical items missing (models, routes), fix BEFORE feature work
+    - Document all gaps in `.autok/progress.txt`
+    - If foundation is severely incomplete, consider running initializer again
+
+**Example Assessment for Todo App:**
+
+- ✓ backend/prisma/schema.prisma exists
+- ✗ Todo model missing from schema
+- ✓ frontend/src/pages/ directory exists
+- ✗ Todos.tsx component missing
+- BLOCKER: Cannot implement todo features without Todo model
+
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself:
 
 - Use `list_files` / `search_files` / `read_file` to locate and inspect `.autok/spec.txt`.
+- Use `list_code_definition_names` on `backend/src/` and `frontend/src/` to quickly map the codebase structure.
 - Record the directory that contains `.autok/spec.txt` as your **project root**.
 - Use that project root as the `cwd` for all subsequent `execute_command` calls.
 
 Sanity check: after selecting the project root, `list_files` at that path should show expected entries (e.g. `.autok/`, `backend/`, `frontend/`, `scripts/`). If `list_files` shows `0 items` unexpectedly, stop and re-check the path (use `search_files` again or confirm with `execute_command`).
+
+**SCAFFOLDING VALIDATION:**
+
+- Check if `.autok/scaffolding-manifest.json` exists
+- If yes, compare manifest against actual files to verify completeness
+- If no, proceed with manual assessment from Step 0.5
+- Document any discrepancies in `.autok/progress.txt`
 
 Prefer tool-based inspection (`read_file`, `list_files`, `search_files`) for reliability across shells. Use `execute_command` only when the information cannot be obtained via tools (e.g. git, starting servers).
 
@@ -280,8 +336,8 @@ It's ok if you only complete one feature in this session, as there will be more 
 
 Implement the chosen feature thoroughly:
 
-1. Write the code (frontend and/or backend as needed) using read_file, write_to_file, apply_diff
-    - **CRITICAL:** After any `apply_diff` or `write_to_file`, immediately `read_file` the edited file to confirm the final content is correct (especially JSON).
+1. Write the code (frontend and/or backend as needed) using read_file, apply_diff, execute_command
+    - **CRITICAL:** After any `apply_diff`, immediately `read_file` the edited file to confirm the final content is correct (especially JSON).
     - If the edit caused corruption, run `git checkout -- <file>` immediately and retry with a different approach.
 2. Test manually using browser automation (see Step 6)
 3. Fix any issues discovered
@@ -447,7 +503,7 @@ Available tools:
 - browser_action: Drive and verify the UI in a browser
 - execute_command: Start servers, run test runners, and run optional automation scripts
 - read_file: Analyze test results and logs
-- write_to_file: Create test scripts and verification documentation
+- execute_command: Create test scripts and verification documentation
 - search_files: Find relevant test files and documentation
 
 Test like a human user with mouse and keyboard. Don't take shortcuts that bypass comprehensive UI testing.
@@ -473,7 +529,7 @@ Test like a human user with mouse and keyboard. Don't take shortcuts that bypass
 
 - **NEVER** skip post-edit verification - it's your safety net against data loss
 - **ALWAYS** use `git checkout -- <file>` if corruption is detected
-- **PREFER** `write_to_file` for schema files and large edits
+- **PREFER** `execute_command` with shell redirection for schema files and large edits
 - **IMMEDIATELY** retry with a different approach if `apply_diff` fails
 - **DOCUMENT** any file corruption incidents in progress.txt
 

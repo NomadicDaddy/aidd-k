@@ -11,14 +11,14 @@ Do NOT write any application code. Only create the setup files listed below.
 
 Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools that are actually available:
 
-| Group    | Tools                                                                              | Purpose            |
-| -------- | ---------------------------------------------------------------------------------- | ------------------ |
-| Read     | read_file, search_files, list_files, list_code_definition_names                    | Code exploration   |
-| Edit     | apply_diff, delete_file, write_to_file                                             | File modifications |
-| Browser  | browser_action                                                                     | Web automation     |
-| Command  | execute_command                                                                    | System commands    |
-| MCP      | use_mcp_tool, access_mcp_resource                                                  | External services  |
-| Workflow | switch_mode, new_task, ask_followup_question, attempt_completion, update_todo_list | Task management    |
+| Group    | Tools                                                           | Purpose            |
+| -------- | --------------------------------------------------------------- | ------------------ |
+| Read     | read_file, search_files, list_files, list_code_definition_names | Code exploration   |
+| Edit     | apply_diff, delete_file                                         | File modifications |
+| Browser  | browser_action                                                  | Web automation     |
+| Command  | execute_command                                                 | System commands    |
+| MCP      | use_mcp_tool, access_mcp_resource                               | External services  |
+| Workflow | switch_mode, new_task, attempt_completion, update_todo_list     | Task management    |
 
 ## Usage
 
@@ -27,7 +27,7 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 - Tool names are exact and case-sensitive (e.g. use `delete_file`, not `deleteFile`).
 - When using `execute_command`, never pass a `cwd` value of `null`/`"null"`. If you want the workspace default working directory, **omit `cwd` entirely**.
 - Once you identify the project root, prefer running all `execute_command` calls with an explicit `cwd` set to that project root.
-- Prefer using `read_file` / `write_to_file` / `apply_diff` / `delete_file` for file operations. Avoid using shell built-ins like `del`/`copy` unless you cannot accomplish the same reliably with the tools.
+- Prefer using `read_file` / `apply_diff` / `delete_file` for file operations. Use `execute_command` with shell redirection (e.g., `Set-Content` in PowerShell) when creating complete files or when tools misbehave.
 - Never invent tool names - only use those listed here
 
 ## Common Patterns
@@ -118,6 +118,59 @@ Never remove features, never edit descriptions, never modify testing steps.
 This ensures no functionality is missed.
 
 **WARNING:** Inaccurate feature tracking (marking unimplemented features as passing) leads to false confidence and prevents proper progress tracking. Always verify actual implementation before updating status.
+
+### STEP 2.5: Create .autok/scaffolding-manifest.json (NEW MANDATORY STEP)
+
+**CRITICAL: Create an explicit record of what scaffolding was set up.**
+
+This manifest serves as the handoff document between sessions and ensures the coding agent knows exactly what's been initialized.
+
+**Create scaffolding-manifest.json with:**
+
+```json
+{
+	"configuration": {
+		"build scripts": "configured",
+		"eslint config": "created",
+		"tsconfig files": "created"
+	},
+	"coreFiles": {
+		"README.md": "created",
+		"backend/package.json": "created",
+		"frontend/package.json": "created",
+		"package.json": "created"
+	},
+	"created": "2024-01-01T12:00:00Z",
+	"directories": {
+		"backend/": "created",
+		"docs/": "created",
+		"frontend/": "created",
+		"scripts/": "created"
+	},
+	"nextSteps": [
+		"Implement data models from spec",
+		"Create API routes for core features",
+		"Build UI components for features"
+	],
+	"specSpecific": {
+		"auth components": "created",
+		"main route files": "created as placeholders",
+		"placeholder components": "created for major features",
+		"schema.prisma": "created with base models"
+	},
+	"specType": "todo-list|user-management|chat-app|etc"
+}
+```
+
+**Requirements for scaffolding-manifest.json:**
+
+- List ALL directories and files created during initialization
+- Mark spec-specific items clearly (models, routes, components)
+- Include what's missing or needs to be implemented
+- Be honest about what was vs wasn't set up
+- This prevents false assumptions about what exists
+
+After creating the manifest, immediately `read_file` to verify it's valid JSON.
 
 ### STEP 3: Create scripts/setup.ts
 
