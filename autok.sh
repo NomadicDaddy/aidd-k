@@ -64,9 +64,10 @@ if [[ ! -d "$PROJECT_DIR" ]]; then
     echo "Project directory '$PROJECT_DIR' does not exist; creating it..."
     mkdir -p "$PROJECT_DIR"
 
-    # Copy scaffolding files to the new project directory
+    # Copy scaffolding files to the new project directory (including hidden files)
     echo "Copying scaffolding files to '$PROJECT_DIR'..."
-    cp -r "$SCRIPT_DIR/scaffolding/"* "$PROJECT_DIR/"
+    # Copy both regular and hidden files
+    find "$SCRIPT_DIR/scaffolding" -mindepth 1 -maxdepth 1 -exec cp -r {} "$PROJECT_DIR/" \;
 fi
 
 # Check if spec file exists

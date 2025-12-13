@@ -21,10 +21,13 @@ if (-not (Test-Path $ProjectDir -PathType Container)) {
 	Write-Host "Project directory '$ProjectDir' does not exist; creating it..."
 	New-Item -ItemType Directory -Path $ProjectDir -Force | Out-Null
 
-	# Copy scaffolding files to the new project directory
+	# Copy scaffolding files to the new project directory (including hidden files)
 	Write-Host "Copying scaffolding files to '$ProjectDir'..."
 	$ScaffoldingSource = Join-Path $PSScriptRoot 'scaffolding'
-	Copy-Item -Path "$ScaffoldingSource/*" -Destination $ProjectDir -Recurse -Force
+	# Copy both regular and hidden files
+	Get-ChildItem -Path $ScaffoldingSource -Force | ForEach-Object {
+		Copy-Item -Path $_.FullName -Destination $ProjectDir -Recurse -Force
+	}
 }
 
 # Check if spec file exists

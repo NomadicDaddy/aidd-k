@@ -117,7 +117,7 @@ This typically includes directories for frontend, backend, and any other compone
 Before your context fills up:
 
 1. Commit all work with descriptive messages using execute_command
-2. Create `autok/progress.txt` with a summary of what you accomplished
+2. Create `.autok/progress.txt` with a summary of what you accomplished
 3. Ensure .autok/feature_list.json is complete and saved
 4. Leave the environment in a clean, working state
 5. Use attempt_completion to present final results

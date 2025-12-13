@@ -70,11 +70,10 @@ description: application description from spec
 frontendPort: default 3330 unless specified in spec
 backendPort: default 3331 unless specified in spec
 
-If `scripts/setup.sh` exists, run it:
+If `scripts/setup.ts` exists, run it:
 
 ```bash
-chmod +x scripts/setup.sh
-./scripts/setup.sh --slug {slug} --name "{name}" --description "{description}" --frontend-port {frontendPort} --backend-port {backendPort}
+bun scripts/setup.ts --slug {slug} --name "{name}" --description "{description}" --frontend-port {frontendPort} --backend-port {backendPort}
 ```
 
 Otherwise, start servers manually using execute_command and document the process.
