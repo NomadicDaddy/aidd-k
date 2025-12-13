@@ -7,29 +7,39 @@ Your job is to create the foundational structure that enables strategic workflow
 After completing the tasks below, you MUST STOP. Do NOT implement any features.
 Do NOT write any application code. Only create the setup files listed below.
 
+### TOOL AVAILABILITY (READ FIRST)
+
+Kilo Code CLI provides a fixed set of tools (see https://kilo.ai/docs/features/tools/tool-use-overview). Only instruct yourself to use tools that are actually available in the current session.
+
+- If a tool is unavailable, fall back to `execute_command` (shell), adjust the workflow, or document what you could not do.
+- Do not assume bash is available; use commands appropriate for the active shell (PowerShell/cmd/bash).
+
 ### CORE CAPABILITIES AVAILABLE TO YOU:
 
 **Strategic Workflow Orchestration:**
 
 - Coordinate complex development workflows across multiple modes
 - Delegate to specialized modes using new_task (Architect/Code/Debug/Ask/Orchestrator)
-- Track progress using update_todo_list
 - Switch between operational modes using switch_mode
 
 **Development Tools:**
 
 - execute_command: Execute shell commands and scripts
 - read_file: Read and analyze project specifications and existing files
-- write_to_file: Create and modify files with complete content
+- write_to_file: Create or overwrite files with complete content
 - apply_diff: Make surgical edits to existing files
+- delete_file: Remove files from the workspace
 - search_files: Perform regex searches across project files
 - list_files: Explore project structure and organization
 - list_code_definition_names: Analyze source code architecture
+- browser_action: Interact with web content (rarely needed during initialization)
+- Note: directory operations are typically done via `execute_command` (shell)
 
 **Mode Coordination:**
 
 - switch_mode: Transition between Architect/Code/Debug/Ask/Orchestrator modes
 - new_task: Create new task instances with specialized modes
+- ask_followup_question: Ask a clarifying question when required
 - attempt_completion: Present results when tasks are complete
 
 ### FIRST: Read the Project Specification
@@ -90,10 +100,12 @@ This ensures no functionality is missed.
 If a `scripts/setup.ts` file does not exist, create one that initializes the development environment:
 
 1. Install any required dependencies
-2. Start any necessary servers or services
-3. Print helpful information about how to access the running application
+2. Validate prerequisites (ports, env vars, required binaries) and create any required local config files
+3. Print helpful information about how to start the application
 
 Base the script on the technology stack specified in `.autok/spec.txt`.
+
+**Important:** This initializer session must not start servers. The setup script should print the commands a later session can run to start the app.
 
 ### THIRD TASK: Initialize Git
 
@@ -104,6 +116,8 @@ Create a git repository and make your first commit with:
 - README.md (project overview and setup instructions)
 
 Commit message: "Initial setup: .autok/feature_list.json, scripts/setup.ts, and project structure"
+
+Note: Run git commands via `execute_command`, adapting to the current shell.
 
 ### FOURTH TASK: Create Project Structure
 
@@ -119,7 +133,7 @@ Before your context fills up:
 1. Commit all work with descriptive messages using execute_command
 2. Create `.autok/progress.txt` with a summary of what you accomplished
 3. Ensure .autok/feature_list.json is complete and saved
-4. Leave the environment in a clean, working state
+4. Leave the environment in a clean state
 5. Use attempt_completion to present final results
 
 **DO NOT IMPLEMENT ANY FEATURES**
@@ -132,29 +146,5 @@ The next agent will continue from here with a fresh context window and will have
 ---
 
 **Remember:** You have unlimited time across many sessions. Focus on quality over speed. Production-ready is the goal.
-
-**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.ts, STOP. Do nothing else.
-
-**STOP IMMEDIATELY AFTER COMPLETING TASKS ABOVE**
-
-Before your context fills up:
-
-1. Commit all work with descriptive messages using execute_command
-2. Create `autok/progress.txt` with a summary of what you accomplished
-3. Ensure .autok/feature_list.json is complete and saved
-4. Leave the environment in a clean, working state
-5. Use attempt_completion to present final results
-
-**DO NOT IMPLEMENT ANY FEATURES**
-**DO NOT WRITE APPLICATION CODE**
-**DO NOT START SERVERS**
-**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.ts**
-
-The next agent will continue from here with a fresh context window and will have access to your multi-mode coordination capabilities.
-
----
-
-**Remember:** You have unlimited time across many sessions. Focus on
-quality over speed. Production-ready is the goal.
 
 **FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.ts, STOP. Do nothing else.

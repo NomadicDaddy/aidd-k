@@ -80,6 +80,8 @@ fi
 SPEC_CHECK_PATH="$PROJECT_DIR/.autok/spec.txt"
 FEATURE_LIST_CHECK_PATH="$PROJECT_DIR/.autok/feature_list.json"
 
+echo "Project directory: $PROJECT_DIR"
+
 # Check for project_dir/.autok/spec.txt
 if [[ -z "$MAX_ITERATIONS" ]]; then
     echo "Running unlimited iterations (use Ctrl+C to stop)"
@@ -94,11 +96,11 @@ if [[ -z "$MAX_ITERATIONS" ]]; then
             # Copy spec file to project directory
             cp "$SPEC_FILE" "$SPEC_CHECK_PATH"
             # Send initializer prompt from project directory
-            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/initializer.md" | kilocode --mode code --auto --workspace "$PROJECT_DIR" --timeout "$TIMEOUT" --nosplash)
+            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/initializer.md" | kilocode --mode code --auto --timeout "$TIMEOUT" --nosplash)
         else
             echo "Required files found, sending coding prompt..."
             # Send coding prompt from project directory
-            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/coding.md" | kilocode --mode code --auto --workspace "$PROJECT_DIR" --timeout "$TIMEOUT" --nosplash)
+            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/coding.md" | kilocode --mode code --auto --timeout "$TIMEOUT" --nosplash)
         fi
 
         echo "--- End of iteration $i ---"
@@ -117,11 +119,11 @@ else
             # Copy spec file to project directory
             cp "$SPEC_FILE" "$SPEC_CHECK_PATH"
             # Send initializer prompt from project directory
-            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/initializer.md" | kilocode --mode code --auto --workspace "$PROJECT_DIR" --timeout "$TIMEOUT" --nosplash)
+            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/initializer.md" | kilocode --mode code --auto --timeout "$TIMEOUT" --nosplash)
         else
             echo "Required files found, sending coding prompt..."
             # Send coding prompt from project directory
-            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/coding.md" | kilocode --mode code --auto --workspace "$PROJECT_DIR" --timeout "$TIMEOUT" --nosplash)
+            (cd "$PROJECT_DIR" && cat "$SCRIPT_DIR/prompts/coding.md" | kilocode --mode code --auto --timeout "$TIMEOUT" --nosplash)
         fi
 
         # If this is not the last iteration, add a separator
