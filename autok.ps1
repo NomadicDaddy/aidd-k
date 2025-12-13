@@ -16,6 +16,26 @@ param(
 	[string]$Model = ''
 )
 
+function Get-NextIterationLogIndex {
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$IterationsDir
+	)
+
+	$max = 0
+	if (Test-Path $IterationsDir -PathType Container) {
+		Get-ChildItem -Path $IterationsDir -Filter '*.log' -File -ErrorAction SilentlyContinue | ForEach-Object {
+			$name = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
+			if ($name -match '^[0-9]+$') {
+				$num = [int]$name
+				if ($num -gt $max) { $max = $num }
+			}
+		}
+	}
+
+	return ($max + 1)
+}
+
 # Ensure project directory exists (create if missing)
 if (-not (Test-Path $ProjectDir -PathType Container)) {
 	Write-Host "Project directory '$ProjectDir' does not exist; creating it..."
@@ -40,62 +60,95 @@ if (-not (Test-Path $Spec -PathType Leaf)) {
 $SpecCheckPath = Join-Path $ProjectDir '.autok/spec.txt'
 $FeatureListCheckPath = Join-Path $ProjectDir '.autok/feature_list.json'
 
+# Iteration transcript logs
+$IterationsDir = Join-Path $ProjectDir '.autok/iterations'
+New-Item -ItemType Directory -Path $IterationsDir -Force | Out-Null
+$NextLogIndex = Get-NextIterationLogIndex -IterationsDir $IterationsDir
+
 # Check for project_dir/.autok/spec.txt
 if ($MaxIterations -eq 0) {
 	Write-Host 'Running unlimited iterations (use Ctrl+C to stop)'
 	$i = 1
 	while ($true) {
-		Write-Host "Iteration $i"
+		$logFile = Join-Path $IterationsDir ("{0}.log" -f $NextLogIndex.ToString('D3'))
+		$NextLogIndex++
 
-		if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf)) {
-			Write-Host 'Required files not found, copying spec and sending initializer prompt...'
-			# Create .autok directory if it doesn't exist
-			New-Item -ItemType Directory -Path "$ProjectDir/.autok" -Force | Out-Null
-			# Copy spec file to project directory
-			Copy-Item $Spec $SpecCheckPath
-			# Send initializer prompt from project directory
-			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
-			Pop-Location
-		} else {
-			Write-Host 'Required files found, sending coding prompt...'
-			# Send coding prompt from project directory
-			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
-			Pop-Location
+		Write-Host "Iteration $i"
+		Write-Host "Transcript: $logFile"
+		Write-Host "Started: $(Get-Date -Format o)"
+
+		try {
+			Start-Transcript -Path $logFile -Force | Out-Null
+
+			if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf)) {
+				Write-Host 'Required files not found, copying spec and sending initializer prompt...'
+				# Create .autok directory if it doesn't exist
+				New-Item -ItemType Directory -Path "$ProjectDir/.autok" -Force | Out-Null
+				# Copy spec file to project directory
+				Copy-Item $Spec $SpecCheckPath
+				# Send initializer prompt from project directory
+				Push-Location $ProjectDir
+				Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
+				Pop-Location
+			} else {
+				Write-Host 'Required files found, sending coding prompt...'
+				# Send coding prompt from project directory
+				Push-Location $ProjectDir
+				Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
+				Pop-Location
+			}
+
+			Write-Host "--- End of iteration $i ---"
+			Write-Host "Finished: $(Get-Date -Format o)"
+			Write-Host ''
+		} finally {
+			try { Stop-Transcript | Out-Null } catch { }
 		}
 
-		Write-Host "--- End of iteration $i ---"
-		Write-Host ''
 		$i++
 	}
 } else {
 	Write-Host "Running $MaxIterations iterations"
 	for ($i = 1; $i -le $MaxIterations; $i++) {
+		$logFile = Join-Path $IterationsDir ("{0}.log" -f $NextLogIndex.ToString('D3'))
+		$NextLogIndex++
+
 		Write-Host "Iteration $i of $MaxIterations"
+		Write-Host "Transcript: $logFile"
+		Write-Host "Started: $(Get-Date -Format o)"
 
-		if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf)) {
-			Write-Host 'Required files not found, copying spec and sending initializer prompt...'
-			# Create .autok directory if it doesn't exist
-			New-Item -ItemType Directory -Path "$ProjectDir/.autok" -Force | Out-Null
-			# Copy spec file to project directory
-			Copy-Item $Spec $SpecCheckPath
-			# Send initializer prompt from project directory
-			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
-			Pop-Location
-		} else {
-			Write-Host 'Required files found, sending coding prompt...'
-			# Send coding prompt from project directory
-			Push-Location $ProjectDir
-			Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
-			Pop-Location
-		}
+		try {
+			Start-Transcript -Path $logFile -Force | Out-Null
 
-		# If this is not the last iteration, add a separator
-		if ($i -lt $MaxIterations) {
-			Write-Host "--- End of iteration $i ---"
-			Write-Host ''
+			if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf)) {
+				Write-Host 'Required files not found, copying spec and sending initializer prompt...'
+				# Create .autok directory if it doesn't exist
+				New-Item -ItemType Directory -Path "$ProjectDir/.autok" -Force | Out-Null
+				# Copy spec file to project directory
+				Copy-Item $Spec $SpecCheckPath
+				# Send initializer prompt from project directory
+				Push-Location $ProjectDir
+				Get-Content "$PSScriptRoot/prompts/initializer.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
+				Pop-Location
+			} else {
+				Write-Host 'Required files found, sending coding prompt...'
+				# Send coding prompt from project directory
+				Push-Location $ProjectDir
+				Get-Content "$PSScriptRoot/prompts/coding.md" | kilocode --mode code --auto --workspace $ProjectDir --timeout $Timeout --nosplash
+				Pop-Location
+			}
+
+			# If this is not the last iteration, add a separator
+			if ($i -lt $MaxIterations) {
+				Write-Host "--- End of iteration $i ---"
+				Write-Host "Finished: $(Get-Date -Format o)"
+				Write-Host ''
+			} else {
+				Write-Host "Finished: $(Get-Date -Format o)"
+				Write-Host ''
+			}
+		} finally {
+			try { Stop-Transcript | Out-Null } catch { }
 		}
 	}
 }

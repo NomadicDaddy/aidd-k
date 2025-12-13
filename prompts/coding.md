@@ -86,8 +86,6 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 
 Start by orienting yourself:
 
-#### Step 1: Gather baseline state
-
 - Use `list_files` / `search_files` / `read_file` to locate and inspect `.autok/spec.txt`.
 - Record the directory that contains `.autok/spec.txt` as your **project root**.
 - Use that project root as the `cwd` for all subsequent `execute_command` calls.
@@ -134,25 +132,17 @@ for the application you're building.
 
 - Avoid `find`/`grep`/`findstr | find` mixtures on Windows (Git Bash vs cmd vs PowerShell differences can cause incorrect results or permission errors).
 - Prefer `search_files` to count occurrences like `"passes": false` instead of shell pipelines.
-- If `.autok/progress.txt` is missing, create it during Step 9.
+- If `.autok/progress.txt` is missing, create it during Step 8.
 
-### STEP 2: START SERVERS (IF NOT RUNNING)
+### STEP 2: VERIFICATION TEST (CRITICAL!)
 
-slug: project_dir basename (e.g., "myapp" for directory "myapp/")
-name: application name from spec
-description: application description from spec
-frontendPort: default 3330 unless specified in spec
-backendPort: default 3331 unless specified in spec
-
-If `scripts/setup.ts` exists, run it:
-
-```bash
-bun scripts/setup.ts --slug {slug} --name "{name}" --description "{description}" --frontend-port {frontendPort} --backend-port {backendPort}
-```
+**SERVICES STARTUP:**
 
 If `bun` is not available, or the project uses a different runtime, run the equivalent setup command for the stack (e.g. `node`/`npm` scripts) as specified by the repo. Document what you ran.
 
 Otherwise, start servers manually using execute_command and document the process.
+
+Do **not** run multiple instances of the same server (e.g. multiple `bun run dev` commands). Verify the port is not listening before you attempt to start the services. If it complains about port conflicts, stop the previous instance with Ctrl+C and restart it. If you accidentally start multiple instances, stop them all with Ctrl+C and restart the server.
 
 #### Important: avoid hanging the session on long-running commands
 
@@ -167,16 +157,6 @@ Use one of these **explicit detached launch wrappers** (recommended). They work 
 - `cmd.exe /c start "" /b bun run dev`
 
 Do **not** run `bun run dev` in the foreground, and do **not** rely on `start /b bun run dev` unless you are definitely in cmd.exe.
-
-If setup/start commands fail due to missing or malformed config files, immediately inspect the referenced config with `read_file`, compare against the expected structure (often `backend/src/config/defaults.json`), fix the config, then rerun setup.
-
-If you need to create/repair a config file:
-
-- Prefer `read_file` on the source-of-truth defaults and `write_to_file` to fully overwrite the target config.
-- If you must delete a corrupted file first, use `delete_file` (not an unknown tool name and not a shell `del`).
-- Do not attempt to paste huge JSON blobs into `execute_command` one-liners (PowerShell here-strings are easy to get wrong); use `write_to_file` instead.
-
-### STEP 3: VERIFICATION TEST (CRITICAL!)
 
 **MANDATORY BEFORE NEW WORK:**
 
@@ -200,14 +180,14 @@ For example, if this were a chat app, you should perform a test that logs into t
     - Missing hover states
     - Console errors
 
-### STEP 4: CHOOSE ONE FEATURE TO IMPLEMENT
+### STEP 3: CHOOSE ONE FEATURE TO IMPLEMENT
 
 Look at .autok/feature_list.json and find the highest-priority feature with "passes": false.
 
 Focus on completing one feature perfectly and completing its testing steps in this session before moving on to other features.
 It's ok if you only complete one feature in this session, as there will be more sessions later that continue to make progress.
 
-### STEP 5: IMPLEMENT THE FEATURE
+### STEP 4: IMPLEMENT THE FEATURE
 
 Implement the chosen feature thoroughly:
 
@@ -217,7 +197,14 @@ Implement the chosen feature thoroughly:
 3. Fix any issues discovered
 4. Verify the feature works end-to-end
 
-### STEP 6: VERIFY WITH BROWSER AUTOMATION
+--
+
+**BEFORE MOVING TO TESTING, ENSURE ALL QUALITY CONTROL GATES ARE PASSED**
+if exists, use `bun run smoke:qc`, otherwise perform standard linting, typechecking, and formatting with the project-appropriate commands.
+
+--
+
+### STEP 5: VERIFY WITH BROWSER AUTOMATION
 
 **CRITICAL:** You MUST verify features through the actual UI.
 
@@ -242,7 +229,7 @@ Use `browser_action` to navigate and test through the UI:
 - Skip visual verification
 - Mark tests passing without thorough verification
 
-### STEP 7: UPDATE .autok/feature_list.json (CAREFULLY!)
+### STEP 6: UPDATE .autok/feature_list.json (CAREFULLY!)
 
 **YOU CAN ONLY MODIFY ONE FIELD: "passes"**
 
@@ -268,7 +255,7 @@ to:
 
 **ONLY CHANGE "passes" FIELD AFTER VERIFICATION WITH SCREENSHOTS.**
 
-### STEP 8: COMMIT YOUR PROGRESS
+### STEP 7: COMMIT YOUR PROGRESS
 
 Make a descriptive git commit using execute_command:
 
@@ -285,7 +272,7 @@ If your shell does not support line continuations (`\`), run the same command as
 
 If `git` reports “not a git repository”, do not force commits. Document the state and proceed with feature work; initialize git only if the repo/spec expects it.
 
-### STEP 9: UPDATE PROGRESS NOTES
+### STEP 8: UPDATE PROGRESS NOTES
 
 Update `.autok/progress.txt` with:
 
@@ -295,7 +282,7 @@ Update `.autok/progress.txt` with:
 - What should be worked on next
 - Current completion status (e.g., "45/200 tests passing")
 
-### STEP 10: END SESSION CLEANLY
+### STEP 9: END SESSION CLEANLY
 
 Before context fills up:
 
@@ -304,7 +291,8 @@ Before context fills up:
 3. Update .autok/feature_list.json if tests verified
 4. Ensure no uncommitted changes
 5. Leave app in working state (no broken features)
-6. Use attempt_completion to present final results
+6. If you started the services, stop them now.
+7. Use attempt_completion to present final results
 
 ---
 
@@ -340,7 +328,7 @@ Test like a human user with mouse and keyboard. Don't take shortcuts that bypass
 - Fast, responsive, professional
 
 **You have unlimited time.** Take as long as needed to get it right. The most important thing is that you
-leave the code base in a clean state before terminating the session (Step 10).
+leave the code base in a clean state before terminating the session (Step 9).
 
 ---
 

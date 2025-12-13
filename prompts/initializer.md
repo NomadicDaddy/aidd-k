@@ -145,7 +145,7 @@ This ensures no functionality is missed.
 
 ### SECOND TASK: Create scripts/setup.ts
 
-If a `scripts/setup.ts` file alerady exists, skip this task.
+If a `scripts/setup.ts` file already exists, skip this task.
 
 Otherwise, create one that initializes the development environment:
 
@@ -159,7 +159,37 @@ After creating or editing `scripts/setup.ts`, immediately `read_file` it to conf
 
 **Important:** This initializer session must not start servers. The setup script should print the commands a later session can run to start the app.
 
-### THIRD TASK: Initialize Git
+### THIRD TASK: Execute scripts/setup.ts
+
+Run the setup script with the following parameters:
+
+slug: project_dir basename (e.g., "myapp" for directory "myapp/")
+name: application name from spec
+description: application description from spec
+frontendPort: default 3330 unless specified in spec
+backendPort: default 3331 unless specified in spec
+
+If `scripts/setup.ts` exists, run it:
+
+```bash
+bun scripts/setup.ts --slug {slug} --name "{name}" --description "{description}" --frontend-port {frontendPort} --backend-port {backendPort}
+```
+
+### FOURTH TASK: Create Project Structure
+
+Set up the basic project structure based on what's specified in `.autok/spec.txt`.
+This typically includes directories for frontend, backend, and any other components mentioned in the spec that do not yet exist.
+
+### FIFTH TASK: Create README.md
+
+Create a comprehensive README.md that includes:
+
+1. Project overview
+2. Setup instructions
+3. How to run the application
+4. Any other relevant information
+
+### SIXTH TASK: Initialize Git
 
 Create a git repository and make your first commit with:
 
@@ -170,11 +200,6 @@ Create a git repository and make your first commit with:
 Commit message: "Initial setup: .autok/feature_list.json, scripts/setup.ts, and project structure"
 
 Note: Run git commands via `execute_command`, adapting to the current shell.
-
-### FOURTH TASK: Create Project Structure
-
-Set up the basic project structure based on what's specified in `.autok/spec.txt`.
-This typically includes directories for frontend, backend, and any other components mentioned in the spec.
 
 ### ENDING THIS SESSION
 
@@ -191,12 +216,5 @@ Before your context fills up:
 **DO NOT IMPLEMENT ANY FEATURES**
 **DO NOT WRITE APPLICATION CODE**
 **DO NOT START SERVERS**
-**STOP AFTER CREATING .autok/feature_list.json AND scripts/setup.ts (if needed)**
 
 The next agent will continue from here with a fresh context window and will have access to your multi-mode coordination capabilities.
-
----
-
-**Remember:** You have unlimited time across many sessions. Focus on quality over speed. Production-ready is the goal.
-
-**FINAL INSTRUCTION:** After saving .autok/feature_list.json and scripts/setup.ts (if needed), STOP. Do nothing else.

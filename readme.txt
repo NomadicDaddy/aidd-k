@@ -26,12 +26,25 @@ AutoK uses project specifications in Markdown format aligned with Spernakit temp
 The script runs in a loop based on max-iterations:
 
 1. Checks if both `project-dir/.autok/spec.txt` AND `project-dir/.autok/feature_list.json` exist
+2. Creates a per-iteration transcript log at `project-dir/.autok/iterations/001.log`, `002.log`, ...
+   - The log index is chosen as the next number after the highest existing numeric `*.log` in that directory
+   - Logs are not overwritten across re-runs
 2. If either is missing:
    - Creates `.autok` directory if needed
    - Copies the provided spec file to `project-dir/.autok/spec.txt`
    - Sends initializer prompt to kilocode
 3. If both exist:
    - Sends coding prompt to kilocode
+
+## Iteration Transcripts
+
+Each iteration writes a transcript file under:
+
+- `project-dir/.autok/iterations/001.log`
+- `project-dir/.autok/iterations/002.log`
+- ...
+
+The transcript captures the console output for that iteration (including `kilocode` output).
 
 ## Example
 
@@ -53,3 +66,5 @@ A PowerShell version (`autok.ps1`) is also available with the same functionality
 ```powershell
 ./autok.ps1 -ProjectDir "../autok-test" -MaxIterations 10 -Spec "./specs/heystack.md"
 ```
+
+The PowerShell version also writes per-iteration transcripts to `project-dir/.autok/iterations/`.
