@@ -28,7 +28,9 @@ Kilo Code CLI provides a fixed set of tools. Only instruct yourself to use tools
 - When using `execute_command`, never pass a `cwd` value of `null`/`"null"`. If you want the workspace default working directory, **omit `cwd` entirely**.
 - Once you identify the project root, prefer running all `execute_command` calls with an explicit `cwd` set to that project root.
 - Prefer using `read_file` / `apply_diff` / `delete_file` for file operations. Use `execute_command` with shell redirection (e.g., `Set-Content` in PowerShell) when creating complete files or when tools misbehave.
-- Never invent tool names - only use those listed here
+- Never invent tool names - only use those listed here.
+
+**IMPORTANT: `list_code_definition_names` only processes files at the top level of the specified directory, not subdirectories.** To explore subdirectories, you must call `list_code_definition_names` on each subdirectory path individually.
 
 ## Common Patterns
 

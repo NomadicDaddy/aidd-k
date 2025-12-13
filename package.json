@@ -1,6 +1,6 @@
 {
 	"name": "autok",
-	"version": "1.0.12",
+	"version": "1.0.13",
 	"description": "KiloCode Autonomous Coding Agent",
 	"type": "module",
 	"main": "./autok.sh",
