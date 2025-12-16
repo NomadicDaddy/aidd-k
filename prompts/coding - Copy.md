@@ -4,34 +4,33 @@ You are in Code mode and ready to continue work on a long-running autonomous dev
 
 ### QUICK REFERENCES
 
-- **Spec (source of truth):** `/.autok/spec.txt`
-- **Architecture map:** `/.autok/project_structure.md`
-- **Feature tests checklist:** `/.autok/feature_list.json`
-- **Todo list:** `/.autok/todo.md`
-- **Progress log:** `/.autok/progress.md`
-- **Project overrides (highest priority):** `/.autok/project.txt`
-- **Tools (canonical):** `/.autok/tools.md`
+- **Spec (source of truth):** `.autok/spec.txt`
+- **Architecture map:** `.autok/project_structure.md`
+- **Feature tests checklist:** `.autok/feature_list.json`
+- **Progress log:** `.autok/progress.md`
+- **Project overrides (highest priority):** `.autok/project.txt`
+- **Tools (canonical):** `.autok/tools.md`
 
 ### HARD CONSTRAINTS
 
 1. **Do not run** `scripts/setup.ts`. Setup was performed by the initializer session.
-2. If there is a **blocking ambiguity** or missing requirements, **stop** and record the question in `/.autok/progress.md`.
-3. Do not run any blocking processes else you will get stuck.
+2. If there is a **blocking ambiguity** or missing requirements, **stop** and record the question in `.autok/progress.md`.
 
 ### STEP 0: TOOLS
 
 You **must** use the Filesystem MCP server for all filesystem (read/write/edit) operations.
 
-Tool names are exact and case-sensitive; treat `/.autok/tools.md` as canonical before using any tool names.
+Tool names are exact and case-sensitive; treat `.autok/tools.md` as canonical before using any tool names.
 
 ### STEP 1: PROJECT-SPECIFIC INSTRUCTIONS
 
 **CRITICAL: Before proceeding, check for project-specific overrides.**
 
 1. **Check for project.txt:**
-    - Look for `/.autok/project.txt` in the project directory
+    - Look for `.autok/project.txt` in the project directory
     - If it exists, read it immediately as it contains project-specific instructions that override generic instructions
     - These instructions may include:
+        - Custom commands for starting/stopping services
         - Project-specific testing procedures
         - Special requirements or constraints
         - Modified workflow steps
@@ -40,6 +39,9 @@ Tool names are exact and case-sensitive; treat `/.autok/tools.md` as canonical b
     - Any instructions in project.txt take precedence over the generic steps in this prompt
     - Document the overrides in your initial assessment
     - If project.txt conflicts with this prompt, follow project.txt
+
+**Example:**
+If project.txt contains "Starting Services Detached (Non-Blocking): bun run dev:detached", use that command instead of the generic startup instructions.
 
 ### STEP 2: VALIDATE SPEC COMPLIANCE
 
@@ -50,7 +52,7 @@ This prevents the catastrophic issue where the implementation diverges from the 
 **Validation Checklist:**
 
 1. **Core Models Verification:**
-    - Read `/.autok/spec.txt` to identify required data models (e.g., Todo, User, Tag)
+    - Read `.autok/spec.txt` to identify required data models (e.g., Todo, User, Tag)
     - Use `list_code_definition_names` on backend directories to identify existing models - **IMPORTANT: `list_code_definition_names` only processes files at the top level of the specified directory, not subdirectories.** To explore subdirectories, you must call `list_code_definition_names` on each subdirectory path individually.
     - Check `schema.prisma` or equivalent for these models
     - Verify NO duplicate models or commented-out code blocks exist
@@ -63,7 +65,7 @@ This prevents the catastrophic issue where the implementation diverges from the 
     - Check for missing core functionality (e.g., todo CRUD operations)
 
 3. **Feature List Alignment:**
-    - Cross-reference `/.autok/feature_list.json` with the spec
+    - Cross-reference `.autok/feature_list.json` with the spec
     - Ensure ALL major spec features have corresponding tests
     - Flag any features marked as "passes": true that aren't implemented
 
@@ -91,14 +93,14 @@ ls -la backend/src/routes/
 
 Start by orienting yourself:
 
-- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `/.autok/spec.txt`.
+- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `.autok/spec.txt`.
 - Use `list_code_definition_names` on `backend/src/` and `frontend/src/` to quickly map the codebase structure. - **IMPORTANT: `list_code_definition_names` only processes files at the top level of the specified directory, not subdirectories.** To explore subdirectories, you must call `list_code_definition_names` on each subdirectory path individually.
-- Record the directory that contains `/.autok/spec.txt` as your **project root**.
+- Record the directory that contains `.autok/spec.txt` as your **project root**.
 - Use that project root as the `cwd` for all subsequent `execute_command` calls.
 
-Sanity check: after selecting the project root, `mcp_filesystem_list_directory` at that path should show expected entries (e.g. `/.autok/`, `backend/`, `frontend/`, `scripts/`). If `mcp_filesystem_list_directory` shows `0 items` unexpectedly, stop and re-check the path (use `mcp_filesystem_search_files` again or confirm with `execute_command`).
+Sanity check: after selecting the project root, `mcp_filesystem_list_directory` at that path should show expected entries (e.g. `.autok/`, `backend/`, `frontend/`, `scripts/`). If `mcp_filesystem_list_directory` shows `0 items` unexpectedly, stop and re-check the path (use `mcp_filesystem_search_files` again or confirm with `execute_command`).
 
-Prefer tool-based inspection (`mcp_filesystem_read_text_file`, `mcp_filesystem_list_directory`, `mcp_filesystem_search_files`) for reliability across shells. Use `execute_command` only when the information cannot be obtained via tools (e.g. git).
+Prefer tool-based inspection (`mcp_filesystem_read_text_file`, `mcp_filesystem_list_directory`, `mcp_filesystem_search_files`) for reliability across shells. Use `execute_command` only when the information cannot be obtained via tools (e.g. git, starting servers).
 
 If you do use `execute_command`, adapt to your shell and avoid brittle pipelines.
 
@@ -140,21 +142,52 @@ git log --oneline -20
 (Select-String -Path .autok/feature_list.json -Pattern '"passes"\s*:\s*false').Count
 ```
 
-Understanding the `/.autok/spec.txt` is critical - it contains the full requirements for the application you're building.
+Understanding the `.autok/spec.txt` is critical - it contains the full requirements for the application you're building.
 
 **Reliability notes (based on prior session failures):**
 
 - Avoid `find`/`grep`/`findstr | find` mixtures on Windows (Git Bash vs cmd vs PowerShell differences can cause incorrect results or permission errors).
 - Prefer `mcp_filesystem_search_files` to count occurrences like `"passes": false` instead of shell pipelines.
-- **Always create `/.autok/progress.md` if missing** - initialize with current session timestamp.
+- **Always create `.autok/progress.md` if missing** - initialize with current session timestamp.
+
+### STEP 4: SERVICES STARTUP
+
+**BEFORE STARTUP, ENSURE ALL QUALITY CONTROL GATES ARE PASSED**
+
+If it exists, use `bun run smoke:qc`, otherwise perform standard linting, typechecking, and formatting with the project-appropriate commands.
+
+If `bun` is not available, or the project uses a different runtime, run the equivalent setup command for the stack (e.g. `node`/`npm` scripts) as specified by the repo. Document what you ran.
+
+Otherwise, start servers manually using `execute_command` and document the process.
+
+Do **not** run multiple instances of the same server (e.g. multiple `bun run dev` commands). Verify the port is not listening before you attempt to start the services. If it complains about port conflicts, stop the previous instance with Ctrl+C and restart it. If you accidentally start multiple instances, stop them all with Ctrl+C and restart the server.
+
+#### Important: avoid hanging the session on long-running commands
+
+Commands like `bun run dev`, `npm run dev`, and many server start scripts are long-running and will not exit on their own.
+
+- Prefer starting servers in a way that returns immediately (background/detached), then proceed to UI verification with `browser_action`.
+- If you accidentally start a long-running command in the foreground, stop it with Ctrl+C, then restart it in a detached/background way.
+
+Use one of these **explicit detached launch wrappers** (recommended). They work even when your current shell is ambiguous (e.g. MINGW64/Git Bash):
+
+- `pwsh -NoProfile -Command "Start-Process bun -ArgumentList 'run','dev'"`
+- `cmd.exe /c start "" /b bun run dev`
+
+Do **not** run `bun run dev` in the foreground, and do **not** rely on `start /b bun run dev` unless you are definitely in cmd.exe.
+
+If the project does not provide `package.json` scripts for detached start/stop, still start detached. If you need to stop services later and there is no project-provided stop script, stop them by terminating the PID that owns the port(s) you started.
+
+Once services attempt to start, review these (and any other relevant) logfiles immediately to look for any errors or warnings on startup:
+
+- `logs/frontend.log`
+- `logs/frontend.error.log`
+- `logs/backend.log`
+- `logs/backend.error.log`
 
 ### STEP 5: VERIFICATION TEST
 
 The previous session may have introduced bugs. Before implementing anything new, you MUST run verification tests.
-
-Verification tests do NOT imply you should stop, start, restart, or otherwise manage project services. Assume services are already running unless the user explicitly tells you otherwise.
-If you believe a service restart is required, ask for explicit user approval first and provide the exact command you want the user to run.
-Always follow `/.autok/project.txt` overrides if present.
 
 **ADDITIONAL SPEC COMPLIANCE VERIFICATION:**
 
@@ -166,7 +199,7 @@ Before testing features, verify the implementation still aligns with the spec:
     - Ensure primary features described in the spec are actually implemented
 
 2. **Feature Integrity Audit:**
-    - Review `/.autok/feature_list.json` for accuracy
+    - Review `.autok/feature_list.json` for accuracy
     - If any features marked as "passes": true are NOT actually implemented, immediately mark them as "passes": false
     - Document any discrepancies between the feature list and actual implementation
 
@@ -190,9 +223,7 @@ For example, if this were a chat app, you should perform a test that logs into t
 
 ### STEP 6: CHOOSE ONE FEATURE TO IMPLEMENT
 
-Check for the existence of a todo list for priority work - `/.autok/todo.md` and intelligently ingest each entry into `/.autok/feature_list.json` (THIS IS THE ONLY TIME YOU MAY ADD TO THIS FILE) and then remove each item from the todo list. It should be empty or deleted when complete.
-
-Look at `/.autok/feature_list.json` and find the highest-priority feature with "passes": false.
+Look at .autok/feature_list.json and find the highest-priority feature with "passes": false.
 
 **CRITICAL: ACCURATE FEATURE ASSESSMENT**
 
@@ -243,9 +274,10 @@ If it exists, use `bun run smoke:qc`, otherwise perform standard linting, typech
 
 Use `browser_action` to navigate and test through the UI:
 
-1. `browser_action.launch` the frontend URL (e.g. http://localhost:{frontendPort})
-2. Use `browser_action.click` / `browser_action.type` / `browser_action.scroll_*` to complete the workflow
-3. Verify visuals and check console logs reported by the browser tool
+1. Start servers with `execute_command` if needed
+2. `browser_action.launch` the frontend URL (e.g. http://localhost:{frontendPort})
+3. Use `browser_action.click` / `browser_action.type` / `browser_action.scroll_*` to complete the workflow
+4. Verify visuals and check console logs reported by the browser tool
 
 **DO:**
 
@@ -261,7 +293,7 @@ Use `browser_action` to navigate and test through the UI:
 - Skip visual verification
 - Mark tests passing without thorough verification
 
-### STEP 9: UPDATE /.autok/feature_list.json (CAREFULLY!)
+### STEP 9: UPDATE .autok/feature_list.json (CAREFULLY!)
 
 **IMPLEMENTATION VERIFICATION BEFORE UPDATING:**
 
@@ -335,7 +367,7 @@ git add .
 git commit -m "Implement [feature name] - verified end-to-end" \
   -m "- Added [specific changes]" \
   -m "- Tested via UI (browser_action)" \
-  -m "- Updated /.autok/feature_list.json: marked test #X as passing" \
+  -m "- Updated .autok/feature_list.json: marked test #X as passing" \
   -m "- Screenshots (if captured) saved under verification/"
 ```
 
@@ -345,7 +377,7 @@ If `git` reports “not a git repository”, do not force commits. Document the 
 
 ### STEP 11: UPDATE PROGRESS NOTES
 
-Update `/.autok/progress.md` with:
+Update `.autok/progress.md` with:
 
 - Session summary header with date, start time, end time, and elapsed time:
 
@@ -366,16 +398,18 @@ SESSION SUMMARY: {start_date} {start_time} - {end_time} ({elapsed_time})
 Before context fills up:
 
 1. Commit all working code using `execute_command`
-2. Update /.autok/progress.md
-3. Update /.autok/feature_list.json if tests verified
+2. Update .autok/progress.md
+3. Update .autok/feature_list.json if tests verified
 4. **FINAL FEATURE STATUS VALIDATION:**
-    - Perform a final audit of /.autok/feature_list.json
+    - Perform a final audit of .autok/feature_list.json
     - Verify all features marked "passes": true are actually implemented
     - Confirm no features are falsely marked as passing
     - Document any discrepancies found
 5. Ensure no uncommitted changes
 6. Leave app in working state (no broken features)
-7. Use attempt_completion to present final results
+7. If you started the services, stop them now.
+    - If services were started detached and there is no project-provided stop script, stop them by terminating the PID that owns the port(s) you started.
+8. Use attempt_completion to present final results
 
 ## TESTING REQUIREMENTS
 
@@ -384,7 +418,7 @@ Before context fills up:
 Available tools:
 
 - browser_action: Drive and verify the UI in a browser
-- execute_command: Run test runners and optional automation scripts
+- execute_command: Start servers, run test runners, and run optional automation scripts
 - mcp_filesystem_read_text_file: Analyze test results and logs
 - mcp_filesystem_search_files: Find relevant test files and documentation
 
@@ -401,7 +435,7 @@ Test like a human user with mouse and keyboard. Don't take shortcuts that bypass
 **Quality Bar:**
 
 - Zero console errors
-- Polished UI matching the design specified in `/.autok/spec.txt`
+- Polished UI matching the design specified in .autok/spec.txt
 - All features work end-to-end through the UI
 - Fast, responsive, professional
 
@@ -411,7 +445,7 @@ Test like a human user with mouse and keyboard. Don't take shortcuts that bypass
 - **ALWAYS** use `git checkout -- <file>` if corruption is detected
 - **PREFER** `execute_command` with shell redirection for schema files and large edits
 - **IMMEDIATELY** retry with a different approach if `mcp_filesystem_edit_file` fails
-- **DOCUMENT** any file corruption incidents in `/.autok/progress.md`
+- **DOCUMENT** any file corruption incidents in progress.md
 
 You have unlimited time. Take as long as needed to get it right. The most important thing is that you
 leave the code base in a clean state before terminating the session (Step 10).
