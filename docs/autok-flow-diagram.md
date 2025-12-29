@@ -1,8 +1,8 @@
-# autok.sh Execution Flow Diagram
+# AIDD-K Execution Flow Diagram
 
 ```mermaid
 graph TD
-    A[Start autok.sh] --> B[Parse Command Line Arguments]
+    A[Start aidd-k.sh] --> B[Parse Command Line Arguments]
     B --> C[Check Required Arguments]
     C --> D{Project Dir Provided?}
     D -->|No| E[Show Error & Exit]
@@ -24,13 +24,13 @@ graph TD
     O --> P{Project Dir Exists?}
     P -->|No| Q[Create Project Directory]
     Q --> R[Copy Scaffolding Files]
-    R --> S[Copy Artifacts to .autok]
+    R --> S[Copy Artifacts to .aidd (migrate legacy .autok/.automaker if present)]
     S --> T[Mark NEW_PROJECT_CREATED=true]
     P -->|Yes| U[Maybe Print Existing Codebase Detected]
 
     T --> V[If Spec File Provided, Validate It Exists]
     U --> V
-    V --> W[Define Paths: .autok/spec.txt, feature_list.json, iterations/]
+    V --> W[Define Paths: .aidd/spec.txt, feature_list.json, iterations/]
     W --> X[Create Iterations Directory]
     X --> Y[Get Next Log Index]
     Y --> Z[Init Failure Counter]
@@ -54,7 +54,7 @@ graph TD
     AL --> AM[Send Onboarding Prompt]
 
     AK -->|No| AN[Copy Artifacts (no overwrite)]
-    AN --> AO[If Spec Provided, Copy to .autok/spec.txt]
+    AN --> AO[If Spec Provided, Copy to .aidd/spec.txt]
     AO --> AP[Send Initializer Prompt]
 
     AJ --> AQ[run_kilocode_prompt]
@@ -87,16 +87,16 @@ graph TD
 3. **Iteration Mode**: Can run unlimited iterations or a specific number
 4. **Onboarding Completion**: If `feature_list.json` appears to still be a template, onboarding is considered incomplete
 5. **Prompt Selection**: Based on existing codebase and required file state:
-    - **Onboarding**: Existing codebases (not newly created) when `.autok` files are missing or onboarding is incomplete
-    - **Initializer**: New/empty projects (or missing `.autok` setup) where spec is copied (if provided)
-    - **Coding**: When `.autok/spec.txt` and `feature_list.json` exist and onboarding is complete
+    - **Onboarding**: Existing codebases (not newly created) when `.aidd` files are missing or onboarding is incomplete; migrates any legacy `.autok` data into `.aidd/`
+    - **Initializer**: New/empty projects (or missing `.aidd` setup) where spec is copied (if provided)
+    - **Coding**: When `.aidd/spec.txt` and `feature_list.json` exist and onboarding is complete
 6. **Abort / Failure Policy**: `--quit-on-abort` can stop the run after N consecutive non-zero `kilocode` exits
 
 ## File Operations
 
 - **Scaffolding Copy**: Only for new projects
-- **Artifacts Copy**: Copies artifacts into `.autok` without overwriting existing files
-- **Spec Copy**: If `--spec` is provided, it may be copied into `.autok/spec.txt` during initializer flow
+- **Artifacts Copy**: Copies artifacts into `.aidd` without overwriting existing files (legacy `.autok` contents are migrated once)
+- **Spec Copy**: If `--spec` is provided, it may be copied into `.aidd/spec.txt` during initializer flow
 - **Log Management**: Automatic cleanup on exit unless `--no-clean` is set
 
 ## Error Handling

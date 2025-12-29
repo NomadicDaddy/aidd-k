@@ -176,20 +176,26 @@ run_kilocode_prompt() {
 # Function to find or create metadata directory
 find_or_create_metadata_dir() {
     local dir="$1"
-    # Check for existing directories in order of preference
+
     if [[ -d "$dir/.aidd" ]]; then
         echo "$dir/.aidd"
         return
     fi
+
+    # Migrate legacy metadata directories into .aidd (read-only fallback)
     if [[ -d "$dir/.autok" ]]; then
-        echo "$dir/.autok"
+        local legacy="$dir/.autok"
+        local target="$dir/.aidd"
+        mkdir -p "$target"
+        cp -R "$legacy/." "$target/" 2>/dev/null || true
+        echo "$target"
         return
     fi
     if [[ -d "$dir/.automaker" ]]; then
         echo "$dir/.automaker"
         return
     fi
-    # Create .aidd as default
+
     mkdir -p "$dir/.aidd"
     echo "$dir/.aidd"
 }

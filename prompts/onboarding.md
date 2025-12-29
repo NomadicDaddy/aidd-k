@@ -12,14 +12,14 @@ You are in Code mode and ready to begin integrating with an existing codebase to
 
 You **must** use the Filesystem MCP server for all filesystem (read/write/edit) operations.
 
-Tool names are exact and case-sensitive; treat `.autok/tools.md` as canonical before using any tool names.
+Tool names are exact and case-sensitive; treat `.aidd/tools.md` as canonical before using any tool names (legacy `.autok` directories are still read-only; always write to `.aidd`).
 
 ### STEP 1: PROJECT-SPECIFIC INSTRUCTIONS
 
 **CRITICAL: Before proceeding, check for project-specific overrides.**
 
 1. **Check for project.txt:**
-    - Look for `.autok/project.txt` in the project directory
+    - Look for `.aidd/project.txt` in the project directory (legacy `.autok/project.txt` should be migrated after reading)
     - If it exists, read it immediately as it contains project-specific instructions that override generic instructions
     - These instructions may include:
         - Custom scaffolding requirements
@@ -27,13 +27,13 @@ Tool names are exact and case-sensitive; treat `.autok/tools.md` as canonical be
         - Special configuration needs
         - Modified initialization steps
 
-2. **Check for Existing .autok Files:**
-    - Look for existing `.autok/feature_list.json`, `.autok/progress.md`, or other .autok files
+2. **Check for Existing .aidd Files:**
+    - Look for existing `.aidd/feature_list.json`, `.aidd/progress.md`, or other .aidd files (copy legacy `.autok/*` into `.aidd/*` if needed)
     - If they exist, preserve and merge their content with new findings
     - Document existing state in your initial assessment
 
 3. **Handle Missing spec.txt:**
-    - If `.autok/spec.txt` doesn't exist (legacy codebase), create one based on your analysis of the existing codebase
+    - If `.aidd/spec.txt` doesn't exist (legacy codebase), create one based on your analysis of the existing codebase
     - Infer the application's purpose from the code structure, package.json, and existing documentation
 
 4. **Apply Overrides:**
@@ -48,15 +48,15 @@ If project.txt contains specific requirements for project structure or configura
 
 Start by orienting yourself with the existing codebase:
 
-- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `.autok/spec.txt`.
+- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `.aidd/spec.txt` (migrate from `.autok/spec.txt` if necessary).
 - Use `mcp_filesystem_list_directory` to understand the existing project structure (frontend/, backend/, scripts/, etc.).
 - Use `list_code_definition_names` on key directories to map the existing codebase architecture. - **IMPORTANT: `list_code_definition_names` only processes files at the top level of the specified directory, not subdirectories.** To explore subdirectories, you must call `list_code_definition_names` on each subdirectory path individually.
-- Record the directory that contains `.autok/spec.txt` as your **project root**.
+- Record the directory that contains `.aidd/spec.txt` as your **project root**.
 - Use that project root as the `cwd` for all subsequent `execute_command` calls.
 
 Sanity check: after selecting the project root, `mcp_filesystem_list_directory` at that path should show the existing project entries. If `mcp_filesystem_list_directory` shows `0 items` unexpectedly, stop and re-check the path.
 
-### STEP 3: Analyze Existing Codebase and Create .autok/feature_list.json
+### STEP 3: Analyze Existing Codebase and Create .aidd/feature_list.json
 
 First, analyze the existing codebase to understand what's already implemented:
 
@@ -68,8 +68,8 @@ First, analyze the existing codebase to understand what's already implemented:
     - Check for CI/CD configurations and incorporate their results
     - Look for existing test coverage reports or test results
 
-2. **Populate .autok/feature_list.json:**
-   Based on `.autok/spec.txt` AND your analysis of the existing codebase, update `.autok/feature_list.json` with 20 detailed end-to-end test cases.
+2. **Populate .aidd/feature_list.json:**
+   Based on `.aidd/spec.txt` AND your analysis of the existing codebase, update `.aidd/feature_list.json` with 20 detailed end-to-end test cases (migrate from `.autok/feature_list.json` if found).
     - For features that already exist and are verified, set "passes": true
     - For features that need implementation, set "passes": false
     - Include any existing functionality that wasn't in the original spec but is present in the codebase
@@ -99,7 +99,7 @@ The feature list must accurately reflect both the specification and the existing
     - Tests must verify actual functionality, not just code presence
     - When in doubt, mark as "passes": false to be conservative
 
-After writing `.autok/feature_list.json`, immediately `mcp_filesystem_read_text_file` it to confirm it is valid JSON and matches the required structure.
+After writing `.aidd/feature_list.json`, immediately `mcp_filesystem_read_text_file` it to confirm it is valid JSON and matches the required structure.
 
 **Format:**
 
@@ -125,7 +125,7 @@ After writing `.autok/feature_list.json`, immediately `mcp_filesystem_read_text_
 ]
 ```
 
-**Requirements for .autok/feature_list.json:**
+**Requirements for .aidd/feature_list.json:**
 
 - Minimum 20 features total with testing steps for each
 - Both "functional" and "style" categories
@@ -147,7 +147,7 @@ Analyze the existing project structure and document it:
 - Note any existing configuration files, databases, or external services
 - Document any special build or deployment processes
 - Identify any missing directories or files that should exist based on best practices
-- Update `.autok/feature_list.json` to include any uncovered issues, technical debt, or improvements discovered during analysis
+- Update `.aidd/feature_list.json` to include any uncovered issues, technical debt, or improvements discovered during analysis
 
 ### STEP 5: Update or Create README.md
 
@@ -176,9 +176,9 @@ Note: Run git commands via `execute_command`, adapting to the current shell.
 Before your context fills up:
 
 1. Commit all work with descriptive messages using execute_command
-2. Update `.autok/progress.md` with a summary of what you accomplished and the current state of the codebase
-3. Ensure .autok/feature_list.json accurately reflects the existing codebase including discovered issues and improvement opportunities
-4. Ensure .autok/project_structure.md exists and documents the current architecture
+2. Update `.aidd/progress.md` with a summary of what you accomplished and the current state of the codebase
+3. Ensure .aidd/feature_list.json accurately reflects the existing codebase including discovered issues and improvement opportunities
+4. Ensure .aidd/project_structure.md exists and documents the current architecture
 5. Leave the environment in a clean state
 6. Use attempt_completion to present final results
 

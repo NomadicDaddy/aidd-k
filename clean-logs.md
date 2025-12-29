@@ -1,6 +1,6 @@
-# Autok Log Cleaner
+# AIDD Log Cleaner
 
-A Node.js script to clean up autok iteration logs by removing extraneous terminal artifacts and noise while preserving the meaningful content.
+A Node.js script to clean up `.aidd/iterations` logs by removing extraneous terminal artifacts and noise while preserving the meaningful content. (Legacy `.autok/iterations` directories can still be cleaned—just point the script at the old path.)
 
 ## Features
 
@@ -17,20 +17,20 @@ A Node.js script to clean up autok iteration logs by removing extraneous termina
 
 ```bash
 # Clean all logs in a directory (creates backups)
-node clean-logs.js D:\applications\autok-todo\.autok\iterations
+node clean-logs.js D:\applications\aidd-todo\.aidd\iterations
 
 # Clean a single log file
-node clean-logs.js D:\applications\autok-todo\.autok\iterations\001.log
+node clean-logs.js D:\applications\aidd-todo\.aidd\iterations\001.log
 ```
 
 ### Advanced Options
 
 ```bash
 # Clean logs without creating backups
-node clean-logs.js D:\applications\autok-todo\.autok\iterations --no-backup
+node clean-logs.js D:\applications\aidd-todo\.aidd\iterations --no-backup
 
 # Write cleaned logs to a different directory
-node clean-logs.js D:\applications\autok-todo\.autok\iterations --output-dir cleaned-logs
+node clean-logs.js D:\applications\aidd-todo\.aidd\iterations --output-dir cleaned-logs
 
 # Show help
 node clean-logs.js --help

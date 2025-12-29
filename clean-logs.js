@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Autok Log Cleaner
+ * AIDD Log Cleaner
  *
- * Cleans up autok iteration logs by removing:
+ * Cleans up `.aidd/iterations` (or legacy `.autok/iterations`) logs by removing:
  * - ANSI escape sequences and terminal control characters
  * - Duplicate progress indicators
  * - Empty lines and excessive whitespace
@@ -140,7 +140,7 @@ function main() {
 
 	if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
 		console.error(`
-Autok Log Cleaner
+AIDD Log Cleaner
 
 Usage:
   node clean-logs.js <directory-or-file> [options]
@@ -152,16 +152,16 @@ Options:
 
 Examples:
   # Clean all logs in a directory (with backups)
-  node clean-logs.js D:\\\\applications\\\\autok-todo\\\\.autok\\\\iterations
+  node clean-logs.js D:\\\\applications\\\\aidd-todo\\\\.aidd\\\\iterations
 
   # Clean a single log file (with backup)
-  node clean-logs.js D:\\\\applications\\\\autok-todo\\\\.autok\\\\iterations\\\\001.log
+  node clean-logs.js D:\\\\applications\\\\aidd-todo\\\\.aidd\\\\iterations\\\\001.log
 
   # Clean logs without backups
-  node clean-logs.js D:\\\\applications\\\\autok-todo\\\\.autok\\\\iterations --no-backup
+  node clean-logs.js D:\\\\applications\\\\aidd-todo\\\\.aidd\\\\iterations --no-backup
 
   # Write cleaned logs to a new directory
-  node clean-logs.js D:\\\\applications\\\\autok-todo\\\\.autok\\\\iterations --output-dir cleaned-logs
+  node clean-logs.js D:\\\\applications\\\\aidd-todo\\\\.aidd\\\\iterations --output-dir cleaned-logs
 `);
 		process.exit(0);
 	}

@@ -70,25 +70,26 @@ function Find-OrCreateMetadataDir {
 		[string]$Directory
 	)
 
-	# Check for existing directories in order of preference
-	$aiddDir = Join-Path $Directory '.aidd'
-	if (Test-Path $aiddDir -PathType Container) {
-		return $aiddDir
+	$target = Join-Path $Directory '.aidd'
+	if (Test-Path $target -PathType Container) {
+		return $target
 	}
 
-	$autokDir = Join-Path $Directory '.autok'
-	if (Test-Path $autokDir -PathType Container) {
-		return $autokDir
+	# Migrate legacy metadata (read-only) into .aidd on demand
+	$legacyAutok = Join-Path $Directory '.autok'
+	if (Test-Path $legacyAutok -PathType Container) {
+		New-Item -ItemType Directory -Path $target -Force | Out-Null
+		Copy-Item -Path (Join-Path $legacyAutok '*') -Destination $target -Recurse -Force -ErrorAction SilentlyContinue
+		return $target
 	}
 
-	$automakerDir = Join-Path $Directory '.automaker'
-	if (Test-Path $automakerDir -PathType Container) {
-		return $automakerDir
+	$legacyAutomaker = Join-Path $Directory '.automaker'
+	if (Test-Path $legacyAutomaker -PathType Container) {
+		return $legacyAutomaker
 	}
 
-	# Create .aidd as default
-	New-Item -Path $aiddDir -ItemType Directory -Force | Out-Null
-	return $aiddDir
+	New-Item -ItemType Directory -Path $target -Force | Out-Null
+	return $target
 }
 
 # Function to check if directory is an existing codebase
