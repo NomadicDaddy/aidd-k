@@ -38,7 +38,7 @@ param(
 
 # Show help if requested
 if ($Help) {
-	Write-Host 'Usage: autok.ps1 -ProjectDir <dir> [-Spec <file>] [-MaxIterations <num>] [-Timeout <seconds>] [-IdleTimeout <seconds>] [-Model <model>] [-InitModel <model>] [-CodeModel <model>] [-NoClean] [-QuitOnAbort <num>] [-Help]'
+	Write-Host 'Usage: aidd-k.ps1 -ProjectDir <dir> [-Spec <file>] [-MaxIterations <num>] [-Timeout <seconds>] [-IdleTimeout <seconds>] [-Model <model>] [-InitModel <model>] [-CodeModel <model>] [-NoClean] [-QuitOnAbort <num>] [-Help]'
 	Write-Host ''
 	Write-Host 'Options:'
 	Write-Host '  -ProjectDir       Project directory (required)'
@@ -63,6 +63,34 @@ if ($ProjectDir -eq '') {
 	exit 1
 }
 
+# Function to find or create metadata directory
+function Find-OrCreateMetadataDir {
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Directory
+	)
+
+	# Check for existing directories in order of preference
+	$autoDir = Join-Path $Directory '.auto'
+	if (Test-Path $autoDir -PathType Container) {
+		return $autoDir
+	}
+
+	$autokDir = Join-Path $Directory '.autok'
+	if (Test-Path $autokDir -PathType Container) {
+		return $autokDir
+	}
+
+	$automakerDir = Join-Path $Directory '.automaker'
+	if (Test-Path $automakerDir -PathType Container) {
+		return $automakerDir
+	}
+
+	# Create .auto as default
+	New-Item -Path $autoDir -ItemType Directory -Force | Out-Null
+	return $autoDir
+}
+
 # Function to check if directory is an existing codebase
 function Test-ExistingCodebase {
 	param(
@@ -73,7 +101,7 @@ function Test-ExistingCodebase {
 	if (Test-Path $Directory -PathType Container) {
 		# Check if directory has files excluding common ignored directories
 		$hasFiles = Get-ChildItem -Path $Directory -Force | Where-Object {
-			$_.Name -notin @('.git', '.autok', '.DS_Store', 'node_modules', '.vscode', '.idea')
+			$_.Name -notin @('.git', '.auto', '.autok', '.automaker', '.DS_Store', 'node_modules', '.vscode', '.idea')
 		} | Measure-Object | Select-Object -ExpandProperty Count
 
 		return $hasFiles -gt 0
@@ -81,8 +109,9 @@ function Test-ExistingCodebase {
 	return $false
 }
 
-# Check if spec is required (only for new/empty project directories)
+# Check if spec is required (only for new projects or when metadata dir doesn't have spec.txt)
 $NeedsSpec = $false
+$MetadataDir = Find-OrCreateMetadataDir -Directory $ProjectDir
 if ((-not (Test-Path $ProjectDir -PathType Container)) -or (-not (Test-ExistingCodebase -Directory $ProjectDir))) {
 	$NeedsSpec = $true
 }
@@ -171,7 +200,7 @@ function Invoke-KilocodePrompt {
 	while (-not $p.HasExited) {
 		Start-Sleep -Milliseconds 200
 		if (([DateTimeOffset]::UtcNow - $lastOutputAt).TotalSeconds -ge $IdleTimeout) {
-			Write-Error "autok.ps1: idle timeout (${IdleTimeout}s) waiting for kilocode output; aborting."
+			Write-Error "aidd-k.ps1: idle timeout (${IdleTimeout}s) waiting for kilocode output; aborting."
 			try { $p.Kill() } catch { }
 			$p.WaitForExit()
 			return 71
@@ -224,22 +253,22 @@ function Clear-IterationLogs {
 	}
 }
 
-# Function to copy artifacts to .autok directory
+# Function to copy artifacts to metadata directory
 function Copy-Artifacts {
 	param(
 		[Parameter(Mandatory = $true)]
 		[string]$ProjectDir
 	)
 
-	Write-Host "Copying artifacts to '$ProjectDir/.autok'..."
+	$ProjectMetadataDir = Find-OrCreateMetadataDir -Directory $ProjectDir
+	Write-Host "Copying artifacts to '$ProjectMetadataDir'..."
 	$ArtifactsSource = Join-Path $PSScriptRoot 'artifacts'
-	$ProjectAutokDir = Join-Path $ProjectDir '.autok'
-	New-Item -ItemType Directory -Path $ProjectAutokDir -Force | Out-Null
+	New-Item -ItemType Directory -Path $ProjectMetadataDir -Force | Out-Null
 	# Copy all artifacts contents, but don't overwrite existing files
 	Get-ChildItem -Path $ArtifactsSource -Force | ForEach-Object {
-		$DestinationPath = Join-Path $ProjectAutokDir $_.Name
+		$DestinationPath = Join-Path $ProjectMetadataDir $_.Name
 		if (-not (Test-Path $DestinationPath)) {
-			Copy-Item -Path $_.FullName -Destination $ProjectAutokDir -Recurse
+			Copy-Item -Path $_.FullName -Destination $ProjectMetadataDir -Recurse
 		}
 	}
 }
@@ -269,14 +298,13 @@ if (-not (Test-Path $ProjectDir -PathType Container)) {
 		Copy-Item -Path $_.FullName -Destination $ProjectDir -Recurse -Force
 	}
 
-	# Copy artifacts contents to project's .autok folder
-	Write-Host "Copying artifacts to '$ProjectDir/.autok'..."
+	# Copy artifacts contents to project's metadata folder
+	Write-Host "Copying artifacts to '$MetadataDir'..."
 	$ArtifactsSource = Join-Path $PSScriptRoot 'artifacts'
-	$ProjectAutokDir = Join-Path $ProjectDir '.autok'
-	New-Item -ItemType Directory -Path $ProjectAutokDir -Force | Out-Null
+	New-Item -ItemType Directory -Path $MetadataDir -Force | Out-Null
 	# Copy all artifacts contents
 	Get-ChildItem -Path $ArtifactsSource -Force | ForEach-Object {
-		Copy-Item -Path $_.FullName -Destination $ProjectAutokDir -Recurse -Force
+		Copy-Item -Path $_.FullName -Destination $MetadataDir -Recurse -Force
 	}
 } else {
 	$script:NewProjectCreated = $false
@@ -293,17 +321,17 @@ if ($Spec -ne '' -and (-not (Test-Path $Spec -PathType Leaf))) {
 }
 
 # Define the paths to check
-$SpecCheckPath = Join-Path $ProjectDir '.autok/spec.txt'
-$FeatureListCheckPath = Join-Path $ProjectDir '.autok/feature_list.json'
+$SpecCheckPath = Join-Path $MetadataDir 'spec.txt'
+$FeatureListCheckPath = Join-Path $MetadataDir 'feature_list.json'
 
 # Iteration transcript logs
-$IterationsDir = Join-Path $ProjectDir '.autok/iterations'
+$IterationsDir = Join-Path $MetadataDir 'iterations'
 New-Item -ItemType Directory -Path $IterationsDir -Force | Out-Null
 $NextLogIndex = Get-NextIterationLogIndex -IterationsDir $IterationsDir
 
 $ConsecutiveFailures = 0
 
-# Check for project_dir/.autok/spec.txt
+# Check for metadata dir/spec.txt
 try {
 	if ($MaxIterations -eq 0) {
 		Write-Host 'Running unlimited iterations (use Ctrl+C to stop)'
@@ -331,7 +359,7 @@ try {
 
 				$kilocodeExitCode = 0
 				if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf) -or -not $OnboardingComplete) {
-					if ((-not $script:NewProjectCreated) -and (Test-ExistingCodebase -Directory $ProjectDir) -and ((-not (Test-Path "$ProjectDir/.autok/spec.txt" -PathType Leaf)) -or (-not (Test-Path "$ProjectDir/.autok/feature_list.json" -PathType Leaf)) -or -not $OnboardingComplete)) {
+					if ((-not $script:NewProjectCreated) -and (Test-ExistingCodebase -Directory $ProjectDir) -and ((-not (Test-Path "$MetadataDir/spec.txt" -PathType Leaf)) -or (-not (Test-Path "$MetadataDir/feature_list.json" -PathType Leaf)) -or -not $OnboardingComplete)) {
 						if (-not $OnboardingComplete) {
 							Write-Host 'Detected incomplete onboarding, resuming onboarding prompt...'
 						} else {
@@ -354,12 +382,12 @@ try {
 
 				if ($kilocodeExitCode -ne 0) {
 					$ConsecutiveFailures++
-					Write-Error "autok.ps1: kilocode failed (exit=$kilocodeExitCode); this is failure #$ConsecutiveFailures."
+					Write-Error "aidd-k.ps1: kilocode failed (exit=$kilocodeExitCode); this is failure #$ConsecutiveFailures."
 					if ($QuitOnAbort -gt 0 -and $ConsecutiveFailures -ge $QuitOnAbort) {
-						Write-Error "autok.ps1: reached failure threshold ($QuitOnAbort); quitting."
+						Write-Error "aidd-k.ps1: reached failure threshold ($QuitOnAbort); quitting."
 						exit $kilocodeExitCode
 					}
-					Write-Error "autok.ps1: continuing to next iteration (threshold: $QuitOnAbort)."
+					Write-Error "aidd-k.ps1: continuing to next iteration (threshold: $QuitOnAbort)."
 				} else {
 					$ConsecutiveFailures = 0
 				}
@@ -398,7 +426,7 @@ try {
 
 				$kilocodeExitCode = 0
 				if (-not (Test-Path $SpecCheckPath -PathType Leaf) -or -not (Test-Path $FeatureListCheckPath -PathType Leaf) -or -not $OnboardingComplete) {
-					if ((-not $script:NewProjectCreated) -and (Test-ExistingCodebase -Directory $ProjectDir) -and ((-not (Test-Path "$ProjectDir/.autok/spec.txt" -PathType Leaf)) -or (-not (Test-Path "$ProjectDir/.autok/feature_list.json" -PathType Leaf)) -or -not $OnboardingComplete)) {
+					if ((-not $script:NewProjectCreated) -and (Test-ExistingCodebase -Directory $ProjectDir) -and ((-not (Test-Path "$MetadataDir/spec.txt" -PathType Leaf)) -or (-not (Test-Path "$MetadataDir/feature_list.json" -PathType Leaf)) -or -not $OnboardingComplete)) {
 						if (-not $OnboardingComplete) {
 							Write-Host 'Detected incomplete onboarding, resuming onboarding prompt...'
 						} else {
@@ -421,12 +449,12 @@ try {
 
 				if ($kilocodeExitCode -ne 0) {
 					$ConsecutiveFailures++
-					Write-Error "autok.ps1: kilocode failed (exit=$kilocodeExitCode); this is failure #$ConsecutiveFailures."
+					Write-Error "aidd-k.ps1: kilocode failed (exit=$kilocodeExitCode); this is failure #$ConsecutiveFailures."
 					if ($QuitOnAbort -gt 0 -and $ConsecutiveFailures -ge $QuitOnAbort) {
-						Write-Error "autok.ps1: reached failure threshold ($QuitOnAbort); quitting."
+						Write-Error "aidd-k.ps1: reached failure threshold ($QuitOnAbort); quitting."
 						exit $kilocodeExitCode
 					}
-					Write-Error "autok.ps1: continuing to next iteration (threshold: $QuitOnAbort)."
+					Write-Error "aidd-k.ps1: continuing to next iteration (threshold: $QuitOnAbort)."
 				} else {
 					$ConsecutiveFailures = 0
 				}

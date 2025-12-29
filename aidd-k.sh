@@ -132,13 +132,13 @@ run_kilocode_prompt() {
             echo "$line"
             if [[ "$line" == *"$NO_ASSISTANT_PATTERN"* ]]; then
                 saw_no_assistant=true
-                echo "autok.sh: detected 'no assistant messages' from model; aborting." >&2
+                echo "aidd-k.sh: detected 'no assistant messages' from model; aborting." >&2
                 kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
                 break
             fi
             if [[ "$line" == *"$PROVIDER_ERROR_PATTERN"* ]]; then
                 saw_provider_error=true
-                echo "autok.sh: detected 'provider error' from model; aborting." >&2
+                echo "aidd-k.sh: detected 'provider error' from model; aborting." >&2
                 kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
                 break
             fi
@@ -147,7 +147,7 @@ run_kilocode_prompt() {
 
         if kill -0 "$KILOCODE_PROC_PID" 2>/dev/null; then
             saw_idle_timeout=true
-            echo "autok.sh: idle timeout (${IDLE_TIMEOUT}s) waiting for kilocode output; aborting." >&2
+            echo "aidd-k.sh: idle timeout (${IDLE_TIMEOUT}s) waiting for kilocode output; aborting." >&2
             kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
             break
         fi
@@ -173,15 +173,38 @@ run_kilocode_prompt() {
     return "$exit_code"
 }
 
+# Function to find or create metadata directory
+find_or_create_metadata_dir() {
+    local dir="$1"
+    # Check for existing directories in order of preference
+    if [[ -d "$dir/.auto" ]]; then
+        echo "$dir/.auto"
+        return
+    fi
+    if [[ -d "$dir/.autok" ]]; then
+        echo "$dir/.autok"
+        return
+    fi
+    if [[ -d "$dir/.automaker" ]]; then
+        echo "$dir/.automaker"
+        return
+    fi
+    # Create .auto as default
+    mkdir -p "$dir/.auto"
+    echo "$dir/.auto"
+}
+
 # Function to check if directory is an existing codebase
 is_existing_codebase() {
     local dir="$1"
-    # Check if directory exists and has files (excluding .git and .autok)
+    # Check if directory exists and has files (excluding .git and metadata directories)
     if [[ -d "$dir" ]]; then
-        # Find files/directories excluding .git, .autok, and their contents
+        # Find files/directories excluding .git, .auto, .autok, .automaker, and their contents
         local has_files=$(find "$dir" -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
+            ! -name '.auto' \
             ! -name '.autok' \
+            ! -name '.automaker' \
             ! -name '.DS_Store' \
             ! -name 'node_modules' \
             ! -name '.vscode' \
@@ -194,8 +217,9 @@ is_existing_codebase() {
     return 1  # False - empty or new directory
 }
 
-# Check if spec is required (only for new projects or when .autok/spec.txt doesn't exist)
+# Check if spec is required (only for new projects or when metadata dir doesn't have spec.txt)
 NEEDS_SPEC=false
+METADATA_DIR=$(find_or_create_metadata_dir "$PROJECT_DIR")
 if [[ ! -d "$PROJECT_DIR" ]] || ! is_existing_codebase "$PROJECT_DIR"; then
     NEEDS_SPEC=true
 fi
@@ -217,11 +241,11 @@ if [[ ! -d "$PROJECT_DIR" ]]; then
     # Copy both regular and hidden files
     find "$SCRIPT_DIR/scaffolding" -mindepth 1 -maxdepth 1 -exec cp -r {} "$PROJECT_DIR/" \;
 
-    # Copy artifacts contents to project's .autok folder
-    echo "Copying artifacts to '$PROJECT_DIR/.autok'..."
-    mkdir -p "$PROJECT_DIR/.autok"
+    # Copy artifacts contents to project's metadata folder
+    echo "Copying artifacts to '$METADATA_DIR'..."
+    mkdir -p "$METADATA_DIR"
     # Copy all artifacts contents
-    find "$SCRIPT_DIR/artifacts" -mindepth 1 -maxdepth 1 -exec cp -r {} "$PROJECT_DIR/.autok/" \;
+    find "$SCRIPT_DIR/artifacts" -mindepth 1 -maxdepth 1 -exec cp -r {} "$METADATA_DIR/" \;
 else
     # Check if this is an existing codebase
     if is_existing_codebase "$PROJECT_DIR"; then
@@ -236,11 +260,11 @@ if [[ -n "$SPEC_FILE" && ! -f "$SPEC_FILE" ]]; then
 fi
 
 # Define the paths to check
-SPEC_CHECK_PATH="$PROJECT_DIR/.autok/spec.txt"
-FEATURE_LIST_CHECK_PATH="$PROJECT_DIR/.autok/feature_list.json"
+SPEC_CHECK_PATH="$METADATA_DIR/spec.txt"
+FEATURE_LIST_CHECK_PATH="$METADATA_DIR/feature_list.json"
 
 # Iteration transcript logs
-ITERATIONS_DIR="$PROJECT_DIR/.autok/iterations"
+ITERATIONS_DIR="$METADATA_DIR/iterations"
 mkdir -p "$ITERATIONS_DIR"
 
 get_next_log_index() {
@@ -262,19 +286,19 @@ get_next_log_index() {
     echo $((max + 1))
 }
 
-# Function to copy artifacts to .autok directory
+# Function to copy artifacts to metadata directory
 copy_artifacts() {
     local project_dir="$1"
-    local project_autok_dir="$project_dir/.autok"
+    local project_metadata_dir=$(find_or_create_metadata_dir "$project_dir")
 
-    echo "Copying artifacts to '$project_autok_dir'..."
-    mkdir -p "$project_autok_dir"
+    echo "Copying artifacts to '$project_metadata_dir'..."
+    mkdir -p "$project_metadata_dir"
     # Copy all artifacts contents, but don't overwrite existing files
     for artifact in "$SCRIPT_DIR/artifacts"/*; do
         if [[ -e "$artifact" ]]; then
             local basename="$(basename "$artifact")"
-            if [[ ! -e "$project_autok_dir/$basename" ]]; then
-                cp -r "$artifact" "$project_autok_dir/"
+            if [[ ! -e "$project_metadata_dir/$basename" ]]; then
+                cp -r "$artifact" "$project_metadata_dir/"
             fi
         fi
     done
@@ -303,7 +327,7 @@ cleanup_logs() {
 # Set trap to clean logs on script exit (both normal and interrupted)
 trap cleanup_logs EXIT
 
-# Check for project_dir/.autok/spec.txt
+# Check for metadata dir/spec.txt
 if [[ -z "$MAX_ITERATIONS" ]]; then
     echo "Running unlimited iterations (use Ctrl+C to stop)"
     i=1
@@ -328,19 +352,19 @@ if [[ -z "$MAX_ITERATIONS" ]]; then
 
             if [[ ! -f "$SPEC_CHECK_PATH" || ! -f "$FEATURE_LIST_CHECK_PATH" || "$ONBOARDING_COMPLETE" == false ]]; then
                 # Check if this is an existing codebase BEFORE copying spec
-                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$PROJECT_DIR/.autok/spec.txt" || ! -f "$PROJECT_DIR/.autok/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
+                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$METADATA_DIR/spec.txt" || ! -f "$METADATA_DIR/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
                     if [[ "$ONBOARDING_COMPLETE" == false ]]; then
                         echo "Detected incomplete onboarding, resuming onboarding prompt..."
                     else
                         echo "Detected existing codebase, using onboarding prompt..."
                     fi
-                    # Create .autok directory if it doesn't exist and copy artifacts
+                    # Create metadata directory if it doesn't exist and copy artifacts
                     copy_artifacts "$PROJECT_DIR"
                     # Send onboarding prompt from project directory (don't copy spec)
                     run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/onboarding.md" "${INIT_MODEL_ARGS[@]}"
                 else
                     echo "Required files not found, copying spec and sending initializer prompt..."
-                    # Create .autok directory if it doesn't exist and copy artifacts
+                    # Create metadata directory if it doesn't exist and copy artifacts
                     copy_artifacts "$PROJECT_DIR"
                     # Copy spec file to project directory (only if we have one)
                     if [[ -n "$SPEC_FILE" ]]; then
@@ -359,14 +383,14 @@ if [[ -z "$MAX_ITERATIONS" ]]; then
             if [[ $KILOCODE_EXIT_CODE -ne 0 ]]; then
                 # Increment failure counter
                 ((CONSECUTIVE_FAILURES++))
-                echo "autok.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
+                echo "aidd-k.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
 
                 # Check if we should quit or continue
                 if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
-                    echo "autok.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
+                    echo "aidd-k.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
                     exit "$KILOCODE_EXIT_CODE"
                 else
-                    echo "autok.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
+                    echo "aidd-k.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
                 fi
             else
                 # Reset failure counter on successful iteration
@@ -409,19 +433,19 @@ else
 
             if [[ ! -f "$SPEC_CHECK_PATH" || ! -f "$FEATURE_LIST_CHECK_PATH" || "$ONBOARDING_COMPLETE" == false ]]; then
                 # Check if this is an existing codebase BEFORE copying spec
-                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$PROJECT_DIR/.autok/spec.txt" || ! -f "$PROJECT_DIR/.autok/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
+                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$METADATA_DIR/spec.txt" || ! -f "$METADATA_DIR/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
                     if [[ "$ONBOARDING_COMPLETE" == false ]]; then
                         echo "Detected incomplete onboarding, resuming onboarding prompt..."
                     else
                         echo "Detected existing codebase, using onboarding prompt..."
                     fi
-                    # Create .autok directory if it doesn't exist and copy artifacts
+                    # Create metadata directory if it doesn't exist and copy artifacts
                     copy_artifacts "$PROJECT_DIR"
                     # Send onboarding prompt from project directory (don't copy spec)
                     run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/onboarding.md" "${INIT_MODEL_ARGS[@]}"
                 else
                     echo "Required files not found, copying spec and sending initializer prompt..."
-                    # Create .autok directory if it doesn't exist and copy artifacts
+                    # Create metadata directory if it doesn't exist and copy artifacts
                     copy_artifacts "$PROJECT_DIR"
                     # Copy spec file to project directory (only if we have one)
                     if [[ -n "$SPEC_FILE" ]]; then
@@ -440,14 +464,14 @@ else
             if [[ $KILOCODE_EXIT_CODE -ne 0 ]]; then
                 # Increment failure counter
                 ((CONSECUTIVE_FAILURES++))
-                echo "autok.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
+                echo "aidd-k.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
 
                 # Check if we should quit or continue
                 if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
-                    echo "autok.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
+                    echo "aidd-k.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
                     exit "$KILOCODE_EXIT_CODE"
                 else
-                    echo "autok.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
+                    echo "aidd-k.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
                 fi
             else
                 # Reset failure counter on successful iteration
