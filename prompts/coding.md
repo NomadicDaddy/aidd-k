@@ -18,7 +18,34 @@ You are in Code mode and ready to continue work on a long-running autonomous dev
 2. If there is a **blocking ambiguity** or missing requirements, **stop** and record the question in `/.aidd/progress.md`.
 3. Do not run any blocking processes else you will get stuck.
 
-### STEP 0: TOOLS
+### STEP 0: INGEST ASSISTANT RULES
+
+**CRITICAL: Before proceeding, check for and ingest assistant rule files.**
+
+1. **Check for Assistant Rule Files:**
+    - Look for and read the following files in order of priority:
+        - `.windsurf/rules/best-practices.md`
+        - `.windsurf/rules/style.md`
+        - `.windsurf/rules/user.md`
+        - `AGENTS.md`
+        - `CLAUDE.md`
+    - These files contain important project rules, guidelines, and conventions
+    - If any of these files exist, read them immediately before continuing
+
+2. **Apply Assistant Rules:**
+    - Instructions in assistant rule files take precedence over generic steps in this prompt
+    - Document any rules found in your initial assessment
+    - If assistant rule files conflict with this prompt, follow assistant rule files
+    - These rules may include:
+        - Coding style and formatting conventions
+        - Architectural patterns and best practices
+        - Project-specific constraints or requirements
+        - Development workflow guidelines
+
+**Example:**
+If `.windsurf/rules/best-practices.md` contains specific architectural guidelines or CLAUDE.md has coding standards, follow those instead of generic instructions in this prompt.
+
+### STEP 0.5: TOOLS
 
 You **must** use the Filesystem MCP server for all filesystem (read/write/edit) operations.
 
@@ -29,7 +56,7 @@ Tool names are exact and case-sensitive; treat `/.aidd/tools.md` as canonical be
 **CRITICAL: Before proceeding, check for project-specific overrides.**
 
 1. **Check for project.txt:**
-    - Look for `/.aidd/project.txt` in the project directory (copy contents from legacy `/.autok/project.txt` if that is all that exists)
+    - Look for `/.aidd/project.txt` in the project directory
     - If it exists, read it immediately as it contains project-specific instructions that override generic instructions
     - These instructions may include:
         - Project-specific testing procedures
@@ -154,7 +181,7 @@ The previous session may have introduced bugs. Before implementing anything new,
 
 Verification tests do NOT imply you should stop, start, restart, or otherwise manage project services. Assume services are already running unless the user explicitly tells you otherwise.
 If you believe a service restart is required, ask for explicit user approval first and provide the exact command you want the user to run.
-Always follow `/.aidd/project.txt` overrides if present (read legacy `/.autok/project.txt` for older runs, then migrate entries into `.aidd`).
+Always follow `/.aidd/project.txt` overrides if present.
 
 **ADDITIONAL SPEC COMPLIANCE VERIFICATION:**
 
@@ -190,9 +217,23 @@ For example, if this were a chat app, you should perform a test that logs into t
 
 ### STEP 6: CHOOSE ONE FEATURE TO IMPLEMENT
 
-Check for the existence of a todo list for priority work - `/.aidd/todo.md` and intelligently ingest each entry into `/.aidd/feature_list.json` (THIS IS THE ONLY TIME YOU MAY ADD TO THIS FILE) and then remove each item from the todo list. It should be empty or deleted when complete.
+Check for existence of a todo list for priority work - `/.aidd/todo.md` and intelligently ingest each entry into `/.aidd/feature_list.json` (THIS IS THE ONLY TIME YOU MAY ADD TO THIS FILE) and then remove each item from todo list. It should be empty or deleted when complete.
 
 Look at `/.aidd/feature_list.json` and find the highest-priority feature with "passes": false.
+
+**CRITICAL: UPDATE FEATURE STATUS BEFORE IMPLEMENTING**
+Before selecting a feature, you MUST read the feature from `/.aidd/feature_list.json` and:
+
+1. Mark its status as "in_progress" by editing `"status": "open"` to `"status": "in_progress"`
+2. Read the feature's `description` and `steps` fields to understand what work is required
+3. Record this in your initial assessment document
+
+**FEATURE SELECTION PRIORITY:**
+
+- First, filter to features with "passes": false
+- Group by priority (critical > high > medium > low)
+- Within each priority level, prefer features with "status": "in_progress" over features with "status": "open"
+- Among same status and priority, select based on dependency order or logical workflow
 
 **CRITICAL: ACCURATE FEATURE ASSESSMENT**
 
@@ -263,7 +304,9 @@ Use `browser_action` to navigate and test through the UI:
 
 ### STEP 9: UPDATE /.aidd/feature_list.json (CAREFULLY!)
 
-**IMPLEMENTATION VERIFICATION BEFORE UPDATING:** CRITICAL: Before changing any "passes" field, you MUST verify the feature is fully implemented:
+**IMPLEMENTATION VERIFICATION BEFORE UPDATING:**
+
+Before changing any "passes" field, you MUST verify the feature is fully implemented:
 
 1. **Code Verification:**
     - Check all required files exist (models, routes, components)

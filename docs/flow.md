@@ -1,8 +1,8 @@
-# AIDD-K Execution Flow Diagram
+# AIDD-x Execution Flow Diagram
 
 ```mermaid
 graph TD
-    A[Start aidd-k.sh] --> B[Parse Command Line Arguments]
+    A[Start aidd-*.sh] --> B[Parse Command Line Arguments]
     B --> C[Check Required Arguments]
     C --> D{Project Dir Provided?}
     D -->|No| E[Show Error & Exit]
@@ -24,7 +24,7 @@ graph TD
     O --> P{Project Dir Exists?}
     P -->|No| Q[Create Project Directory]
     Q --> R[Copy Scaffolding Files]
-    R --> S[Copy Artifacts to .aidd (migrate legacy .autok/.automaker if present)]
+    R --> S[Copy Artifacts to .aidd]
     S --> T[Mark NEW_PROJECT_CREATED=true]
     P -->|Yes| U[Maybe Print Existing Codebase Detected]
 
@@ -57,11 +57,11 @@ graph TD
     AN --> AO[If Spec Provided, Copy to .aidd/spec.txt]
     AO --> AP[Send Initializer Prompt]
 
-    AJ --> AQ[run_kilocode_prompt]
+    AJ --> AQ[run_tool_prompt]
     AM --> AQ
     AP --> AQ
 
-    AQ --> AR{kilocode exit code == 0?}
+    AQ --> AR{tool exit code == 0?}
     AR -->|Yes| AS[Reset Failure Counter]
     AR -->|No| AT[Increment Failure Counter]
     AT --> AU{Failure Threshold Reached? (--quit-on-abort)}
@@ -87,15 +87,15 @@ graph TD
 3. **Iteration Mode**: Can run unlimited iterations or a specific number
 4. **Onboarding Completion**: If `feature_list.json` appears to still be a template, onboarding is considered incomplete
 5. **Prompt Selection**: Based on existing codebase and required file state:
-    - **Onboarding**: Existing codebases (not newly created) when `.aidd` files are missing or onboarding is incomplete; migrates any legacy `.autok` data into `.aidd/`
+    - **Onboarding**: Existing codebases (not newly created) when `.aidd` files are missing or onboarding is incomplete
     - **Initializer**: New/empty projects (or missing `.aidd` setup) where spec is copied (if provided)
     - **Coding**: When `.aidd/spec.txt` and `feature_list.json` exist and onboarding is complete
-6. **Abort / Failure Policy**: `--quit-on-abort` can stop the run after N consecutive non-zero `kilocode` exits
+6. **Abort / Failure Policy**: `--quit-on-abort` can stop the run after N consecutive non-zero `tool` exits
 
 ## File Operations
 
 - **Scaffolding Copy**: Only for new projects
-- **Artifacts Copy**: Copies artifacts into `.aidd` without overwriting existing files (legacy `.autok` contents are migrated once)
+- **Artifacts Copy**: Copies artifacts into `.aidd` without overwriting existing files
 - **Spec Copy**: If `--spec` is provided, it may be copied into `.aidd/spec.txt` during initializer flow
 - **Log Management**: Automatic cleanup on exit unless `--no-clean` is set
 
@@ -103,7 +103,7 @@ graph TD
 
 - Missing required arguments exit immediately
 - If `--spec` is provided but the file does not exist, the script exits
-- `run_kilocode_prompt` can abort early on:
+- `run_tool_prompt` can abort early on:
     - no assistant messages
     - provider errors
     - idle timeout (`--idle-timeout`)

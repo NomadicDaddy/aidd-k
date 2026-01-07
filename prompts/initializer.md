@@ -8,7 +8,34 @@ You are in Code mode and ready to begin setting up the foundation for all future
 2. Do not write application business logic. Only create the setup/tracking/scaffolding files described below.
 3. Do not run any blocking processes else you will get stuck.
 
-### STEP 0: TOOLS
+### STEP 0: INGEST ASSISTANT RULES
+
+**CRITICAL: Before proceeding, check for and ingest assistant rule files.**
+
+1. **Check for Assistant Rule Files:**
+    - Look for and read the following files in order of priority:
+        - `.windsurf/rules/best-practices.md`
+        - `.windsurf/rules/style.md`
+        - `.windsurf/rules/user.md`
+        - `AGENTS.md`
+        - `CLAUDE.md`
+    - These files contain important project rules, guidelines, and conventions
+    - If any of these files exist, read them immediately before continuing
+
+2. **Apply Assistant Rules:**
+    - Instructions in assistant rule files take precedence over generic steps in this prompt
+    - Document any rules found in your initial assessment
+    - If assistant rule files conflict with this prompt, follow assistant rule files
+    - These rules may include:
+        - Coding style and formatting conventions
+        - Architectural patterns and best practices
+        - Project-specific constraints or requirements
+        - Development workflow guidelines
+
+**Example:**
+If `.windsurf/rules/best-practices.md` contains specific architectural guidelines or CLAUDE.md has coding standards, follow those instead of generic instructions in this prompt.
+
+### STEP 0.5: TOOLS
 
 You **must** use the Filesystem MCP server for all filesystem (read/write/edit) operations.
 
@@ -19,7 +46,7 @@ Tool names are exact and case-sensitive; treat `.aidd/tools.md` as canonical bef
 **CRITICAL: Before proceeding, check for project-specific overrides.**
 
 1. **Check for project.txt:**
-    - Look for `.aidd/project.txt` in the project directory (read from legacy `.autok/project.txt` if that is all that exists, then migrate it)
+    - Look for `/.aidd/project.txt` in the project directory
     - If it exists, read it immediately as it contains project-specific instructions that override generic instructions
     - These instructions may include:
         - Custom scaffolding requirements
@@ -39,17 +66,17 @@ If project.txt contains specific requirements for project structure or configura
 
 Start by orienting yourself:
 
-- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `.aidd/spec.txt` (copy from `.autok/spec.txt` if necessary).
+- Use `mcp_filesystem_list_directory` / `mcp_filesystem_search_files` / `mcp_filesystem_read_text_file` to locate and inspect `/.aidd/spec.txt`.
 - Use `mcp_filesystem_list_directory` to understand the existing project structure (frontend/, backend/, scripts/, etc.).
 - Use `list_code_definition_names` on key directories to map the existing codebase architecture. - **IMPORTANT: `list_code_definition_names` only processes files at the top level of the specified directory, not subdirectories.** To explore subdirectories, you must call `list_code_definition_names` on each subdirectory path individually.
-- Record the directory that contains `.aidd/spec.txt` as your **project root**.
+- Record the directory that contains `/.aidd/spec.txt` as your **project root**.
 - Use that project root as the `cwd` for all subsequent `execute_command` calls.
 
-Sanity check: after selecting the project root, `mcp_filesystem_list_directory` at that path should show expected entries (e.g. `.aidd/`, `backend/`, `frontend/`, `scripts/`). If `mcp_filesystem_list_directory` shows `0 items` unexpectedly, stop and re-check the path (use `mcp_filesystem_search_files` again or confirm with `execute_command`).
+Sanity check: after selecting the project root, `mcp_filesystem_list_directory` at that path should show expected entries (e.g. `/.aidd/`, `backend/`, `frontend/`, `scripts/`). If `mcp_filesystem_list_directory` shows `0 items` unexpectedly, stop and re-check the path (use `mcp_filesystem_search_files` again or confirm with `execute_command`).
 
-### STEP 3: Populate .aidd/feature_list.json
+### STEP 3: Populate /.aidd/feature_list.json
 
-Based on `.aidd/spec.txt`, update `.aidd/feature_list.json` by populating it with 20 detailed end-to-end test cases. This file is the single source of truth for what needs to be built (migrate any existing `.autok/feature_list.json` into `.aidd/` before editing).
+Based on `/.aidd/spec.txt`, update `/.aidd/feature_list.json` by populating it with 20 detailed end-to-end test cases. This file is the single source of truth for what needs to be built.
 
 **CRITICAL: ACCURATE FEATURE TRACKING**
 
@@ -71,7 +98,7 @@ The feature list must accurately reflect the specification:
     - Each feature must have concrete, testable steps
     - Tests must verify actual functionality, not just code presence
 
-After writing `.aidd/feature_list.json`, immediately `mcp_filesystem_read_text_file` it to confirm it is valid JSON and matches the required structure.
+After writing `/.aidd/feature_list.json`, immediately `mcp_filesystem_read_text_file` it to confirm it is valid JSON and matches the required structure.
 
 **Format:**
 
@@ -97,7 +124,7 @@ After writing `.aidd/feature_list.json`, immediately `mcp_filesystem_read_text_f
 ]
 ```
 
-**Requirements for .aidd/feature_list.json:**
+**Requirements for /.aidd/feature_list.json:**
 
 - Minimum 20 features total with testing steps for each
 - Both "functional" and "style" categories
@@ -120,7 +147,7 @@ Otherwise, create one that initializes the development environment:
 2. Validate prerequisites (ports, env vars, required binaries) and create any required local config files
 3. Print helpful information about how to start the application
 
-Base the script on the technology stack specified in `.aidd/spec.txt` and ensure it accepts and uses the parameters described in Step 5.
+Base the script on the technology stack specified in `/.aidd/spec.txt` and ensure it accepts and uses the parameters described in Step 5.
 
 After creating or editing `scripts/setup.ts`, immediately `mcp_filesystem_read_text_file` it to confirm the intended contents were written.
 
@@ -142,7 +169,7 @@ bun scripts/setup.ts --slug {slug} --name "{name}" --description "{description}"
 
 ### STEP 6: Create Project Structure
 
-Set up the basic project structure based on what's specified in `.aidd/spec.txt`.
+Set up the basic project structure based on what's specified in `/.aidd/spec.txt`.
 This typically includes directories for frontend, backend, and any other components mentioned in the spec that do not yet exist.
 
 ### STEP 7: Create README.md
@@ -169,8 +196,8 @@ Note: Run git commands via `execute_command`, adapting to the current shell.
 Before your context fills up:
 
 1. Commit all work with descriptive messages using execute_command
-2. Update `.aidd/progress.md` with a summary of what you accomplished (create it if missing; migrate from `.autok/progress.md` if present)
-3. Ensure `.aidd/feature_list.json` is complete and saved
+2. Update `/.aidd/progress.md` with a summary of what you accomplished (create it if missing)
+3. Ensure /.aidd/feature_list.json is complete and saved
 4. Leave the environment in a clean state
 5. Use attempt_completion to present final results
 
