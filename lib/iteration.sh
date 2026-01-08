@@ -131,17 +131,25 @@ should_continue() {
 # Returns: 0 if should continue, exits if should quit
 handle_failure() {
     local exit_code="$1"
-    
+
     # Don't count timeout (exit 124) as a failure if CONTINUE_ON_TIMEOUT is set
     if [[ $exit_code -eq 124 && $CONTINUE_ON_TIMEOUT == true ]]; then
         log_warn "Timeout detected (exit=$exit_code), continuing to next iteration..."
+        # Increment failure counter to track repeated timeouts
+        ((CONSECUTIVE_FAILURES++))
+        log_error "Timeout #$CONSECUTIVE_FAILURES (exit=$exit_code)"
+        # Check if we should quit due to repeated timeouts
+        if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
+            log_error "Reached failure threshold ($QUIT_ON_ABORT) due to repeated timeouts; quitting."
+            exit "$exit_code"
+        fi
         return 0
     fi
-    
+
     # Increment failure counter
     ((CONSECUTIVE_FAILURES++))
     log_warn "KiloCode failed (exit=$exit_code); this is failure #$CONSECUTIVE_FAILURES"
-    
+
     # Check if we should quit or continue
     if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
         log_error "Reached failure threshold ($QUIT_ON_ABORT); quitting."
@@ -149,7 +157,7 @@ handle_failure() {
     else
         log_info "Continuing to next iteration (threshold: $QUIT_ON_ABORT)"
     fi
-    
+
     return 0
 }
 
