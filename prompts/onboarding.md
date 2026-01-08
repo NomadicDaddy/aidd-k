@@ -2,6 +2,16 @@
 
 You are in Code mode and ready to begin integrating with an existing codebase to set up the foundation for all future development sessions.
 
+### QUICK REFERENCES
+
+- **Spec (source of truth):** `/.aidd/spec.txt`
+- **Architecture map:** `/.aidd/project_structure.md`
+- **Feature tests checklist:** `/.aidd/feature_list.json`
+- **Todo list:** `/.aidd/todo.md`
+- **Progress log:** `/.aidd/progress.md`
+- **Project overrides (highest priority):** `/.aidd/project.txt`
+- **Tools (canonical):** `/.aidd/tools.md` (legacy `.autok/*` files should be migrated after reading)
+
 ### HARD CONSTRAINTS
 
 1. **Stop after initialization.** Do not implement product features.

@@ -1,506 +1,98 @@
 #!/usr/bin/env bash
 
-# Default values
-MODEL=""
-INIT_MODEL_OVERRIDE=""
-CODE_MODEL_OVERRIDE=""
-SPEC_FILE=""
-MAX_ITERATIONS=""  # Empty means unlimited
-PROJECT_DIR=""
-TIMEOUT="600"  # Default to 600 seconds
-IDLE_TIMEOUT="180"  # Default idle output timeout in seconds
-NO_CLEAN=false  # Whether to skip log cleaning
-QUIT_ON_ABORT="0"  # 0=continue on abort, N=quit after N consecutive failures
+# =============================================================================
+# aidd-k.sh - AI Development Driver: KiloCode
+# =============================================================================
+# This script orchestrates AI-driven development using KiloCode.
+#
+# Module Structure:
+#   - lib/config.sh: Configuration constants and defaults
+#   - lib/utils.sh: Utility functions (logging, file operations)
+#   - lib/args.sh: Command-line argument parsing
+#   - lib/kilocode-cli.sh: KiloCode CLI interaction functions
+#   - lib/project.sh: Project initialization and management
+#   - lib/iteration.sh: Iteration handling and state management
+# =============================================================================
 
-NEW_PROJECT_CREATED=false
-
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --model)
-            MODEL="$2"
-            shift 2
-            ;;
-        --init-model)
-            INIT_MODEL_OVERRIDE="$2"
-            shift 2
-            ;;
-        --code-model)
-            CODE_MODEL_OVERRIDE="$2"
-            shift 2
-            ;;
-        --spec)
-            SPEC_FILE="$2"
-            shift 2
-            ;;
-        --max-iterations)
-            MAX_ITERATIONS="$2"
-            shift 2
-            ;;
-        --project-dir)
-            PROJECT_DIR="$2"
-            shift 2
-            ;;
-        --timeout)
-            TIMEOUT="$2"
-            shift 2
-            ;;
-        --idle-timeout)
-            IDLE_TIMEOUT="$2"
-            shift 2
-            ;;
-        --no-clean)
-            NO_CLEAN=true
-            shift 1
-            ;;
-        --quit-on-abort)
-            QUIT_ON_ABORT="$2"
-            shift 2
-            ;;
-        -h|--help)
-            echo "Usage: $0 --project-dir <dir> [--spec <file>] [--max-iterations <num>] [--timeout <seconds>] [--idle-timeout <seconds>] [--model <model>] [--init-model <model>] [--code-model <model>] [--no-clean] [--quit-on-abort <num>]"
-            echo ""
-            echo "Options:"
-            echo "  --project-dir      Project directory (required)"
-            echo "  --spec             Specification file (optional for existing codebases, required for new projects)"
-            echo "  --max-iterations   Maximum iterations (optional, unlimited if not specified)"
-            echo "  --timeout          Timeout in seconds (optional, default: 600)"
-            echo "  --idle-timeout     Abort if kilocode produces no output for N seconds (optional, default: 180)"
-            echo "  --model            Model to use (optional)"
-            echo "  --init-model       Model to use for initializer/onboarding prompts (optional, overrides --model)"
-            echo "  --code-model       Model to use for coding prompt (optional, overrides --model)"
-            echo "  --no-clean         Skip log cleaning on exit (optional)"
-            echo "  --quit-on-abort    Quit after N consecutive failures (optional, default: 0=continue indefinitely)"
-            echo ""
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            exit 1
-            ;;
-    esac
-done
-
-# Check required arguments
-if [[ -z "$PROJECT_DIR" ]]; then
-    echo "Error: Missing required argument --project-dir"
-    echo "Use --help for usage information"
-    exit 1
-fi
-
-# Get absolute path to script directory
+# -----------------------------------------------------------------------------
+# Source Library Modules
+# -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-INIT_MODEL_EFFECTIVE="$MODEL"
-if [[ -n "$INIT_MODEL_OVERRIDE" ]]; then
-    INIT_MODEL_EFFECTIVE="$INIT_MODEL_OVERRIDE"
+source "${SCRIPT_DIR}/lib/config.sh"
+source "${SCRIPT_DIR}/lib/utils.sh"
+source "${SCRIPT_DIR}/lib/args.sh"
+source "${SCRIPT_DIR}/lib/kilocode-cli.sh"
+source "${SCRIPT_DIR}/lib/project.sh"
+source "${SCRIPT_DIR}/lib/iteration.sh"
+
+# -----------------------------------------------------------------------------
+# Global Variables
+# -----------------------------------------------------------------------------
+export NEW_PROJECT_CREATED=false
+
+# -----------------------------------------------------------------------------
+# ARGUMENT PARSING
+# -----------------------------------------------------------------------------
+init_args "$@"
+if [[ $? -ne 0 ]]; then
+    exit $?
 fi
 
-CODE_MODEL_EFFECTIVE="$MODEL"
-if [[ -n "$CODE_MODEL_OVERRIDE" ]]; then
-    CODE_MODEL_EFFECTIVE="$CODE_MODEL_OVERRIDE"
+# -----------------------------------------------------------------------------
+# INITIALIZATION
+# -----------------------------------------------------------------------------
+
+# Check if KiloCode is available
+if ! check_kilocode_available; then
+    log_error "KiloCode CLI is not available. Please install it first."
+    exit $EXIT_GENERAL_ERROR
 fi
 
-INIT_MODEL_ARGS=()
-if [[ -n "$INIT_MODEL_EFFECTIVE" ]]; then
-    INIT_MODEL_ARGS=(--model "$INIT_MODEL_EFFECTIVE")
-fi
+# Print project information
+log_info "Project directory: $PROJECT_DIR"
 
-CODE_MODEL_ARGS=()
-if [[ -n "$CODE_MODEL_EFFECTIVE" ]]; then
-    CODE_MODEL_ARGS=(--model "$CODE_MODEL_EFFECTIVE")
-fi
+# Setup project (initialize if needed, copy artifacts, etc.)
+setup_project "$PROJECT_DIR" "$SCRIPT_DIR" "$SPEC_FILE" NEW_PROJECT_CREATED
 
-NO_ASSISTANT_PATTERN="The model returned no assistant messages"
-PROVIDER_ERROR_PATTERN="Provider returned error"
-
-run_kilocode_prompt() {
-    local project_dir="$1"
-    local prompt_path="$2"
-    shift 2
-
-    local -a model_args=("$@")
-    local saw_no_assistant=false
-    local saw_idle_timeout=false
-    local saw_provider_error=false
-
-    coproc KILOCODE_PROC { (cd "$project_dir" && cat "$prompt_path" | kilocode --mode code --auto --timeout "$TIMEOUT" --nosplash "${model_args[@]}") 2>&1; }
-
-    while true; do
-        local line=""
-        if IFS= read -r -t "$IDLE_TIMEOUT" line <&"${KILOCODE_PROC[0]}"; then
-            echo "$line"
-            if [[ "$line" == *"$NO_ASSISTANT_PATTERN"* ]]; then
-                saw_no_assistant=true
-                echo "aidd-k.sh: detected 'no assistant messages' from model; aborting." >&2
-                kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
-                break
-            fi
-            if [[ "$line" == *"$PROVIDER_ERROR_PATTERN"* ]]; then
-                saw_provider_error=true
-                echo "aidd-k.sh: detected 'provider error' from model; aborting." >&2
-                kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
-                break
-            fi
-            continue
-        fi
-
-        if kill -0 "$KILOCODE_PROC_PID" 2>/dev/null; then
-            saw_idle_timeout=true
-            echo "aidd-k.sh: idle timeout (${IDLE_TIMEOUT}s) waiting for kilocode output; aborting." >&2
-            kill -TERM "$KILOCODE_PROC_PID" 2>/dev/null || true
-            break
-        fi
-
-        break
-    done
-
-    wait "$KILOCODE_PROC_PID" 2>/dev/null
-    local exit_code=$?
-
-    if [[ "$saw_no_assistant" == true ]]; then
-        return 70
-    fi
-
-    if [[ "$saw_idle_timeout" == true ]]; then
-        return 71
-    fi
-
-    if [[ "$saw_provider_error" == true ]]; then
-        return 72
-    fi
-
-    return "$exit_code"
-}
-
-# Function to find or create metadata directory
-find_or_create_metadata_dir() {
-    local dir="$1"
-
-    if [[ -d "$dir/.aidd" ]]; then
-        echo "$dir/.aidd"
-        return
-    fi
-
-    # Migrate legacy metadata directories into .aidd (read-only fallback)
-    if [[ -d "$dir/.autok" ]]; then
-        local legacy="$dir/.autok"
-        local target="$dir/.aidd"
-        mkdir -p "$target"
-        cp -R "$legacy/." "$target/" 2>/dev/null || true
-        echo "$target"
-        return
-    fi
-    if [[ -d "$dir/.automaker" ]]; then
-        echo "$dir/.automaker"
-        return
-    fi
-
-    mkdir -p "$dir/.aidd"
-    echo "$dir/.aidd"
-}
-
-# Function to check if directory is an existing codebase
-is_existing_codebase() {
-    local dir="$1"
-    # Check if directory exists and has files (excluding .git and metadata directories)
-    if [[ -d "$dir" ]]; then
-        # Find files/directories excluding .git, .aidd, .auto, .autok, .automaker, and their contents
-        local has_files=$(find "$dir" -mindepth 1 -maxdepth 1 \
-            ! -name '.git' \
-            ! -name '.aidd' \
-            ! -name '.auto' \
-            ! -name '.autok' \
-            ! -name '.automaker' \
-            ! -name '.DS_Store' \
-            ! -name 'node_modules' \
-            ! -name '.vscode' \
-            ! -name '.idea' \
-            -print -quit 2>/dev/null | wc -l)
-        if [[ $has_files -gt 0 ]]; then
-            return 0  # True - it's an existing codebase
-        fi
-    fi
-    return 1  # False - empty or new directory
-}
+# Initialize iterations
+init_iterations "$PROJECT_DIR"
 
 # Check if spec is required (only for new projects or when metadata dir doesn't have spec.txt)
 NEEDS_SPEC=false
-METADATA_DIR=$(find_or_create_metadata_dir "$PROJECT_DIR")
 if [[ ! -d "$PROJECT_DIR" ]] || ! is_existing_codebase "$PROJECT_DIR"; then
     NEEDS_SPEC=true
 fi
 
 if [[ "$NEEDS_SPEC" == true && -z "$SPEC_FILE" ]]; then
-    echo "Error: Missing required argument --spec (required for new projects or when spec.txt doesn't exist)"
-    echo "Use --help for usage information"
-    exit 1
-fi
-
-# Ensure project directory exists (create if missing)
-if [[ ! -d "$PROJECT_DIR" ]]; then
-    echo "Project directory '$PROJECT_DIR' does not exist; creating it..."
-    mkdir -p "$PROJECT_DIR"
-    NEW_PROJECT_CREATED=true
-
-    # Copy scaffolding files to the new project directory (including hidden files)
-    echo "Copying scaffolding files to '$PROJECT_DIR'..."
-    # Copy both regular and hidden files
-    find "$SCRIPT_DIR/scaffolding" -mindepth 1 -maxdepth 1 -exec cp -r {} "$PROJECT_DIR/" \;
-
-    # Copy artifacts contents to project's metadata folder
-    echo "Copying artifacts to '$METADATA_DIR'..."
-    mkdir -p "$METADATA_DIR"
-    # Copy all artifacts contents
-    find "$SCRIPT_DIR/artifacts" -mindepth 1 -maxdepth 1 -exec cp -r {} "$METADATA_DIR/" \;
-else
-    # Check if this is an existing codebase
-    if is_existing_codebase "$PROJECT_DIR"; then
-        echo "Detected existing codebase in '$PROJECT_DIR'"
-    fi
+    log_error "Missing required argument --spec (required for new projects or when spec.txt doesn't exist)"
+    log_info "Use --help for usage information"
+    exit $EXIT_INVALID_ARGS
 fi
 
 # Check if spec file exists (only if provided)
 if [[ -n "$SPEC_FILE" && ! -f "$SPEC_FILE" ]]; then
-    echo "Error: Spec file '$SPEC_FILE' does not exist"
-    exit 1
+    log_error "Spec file '$SPEC_FILE' does not exist"
+    exit $EXIT_NOT_FOUND
 fi
 
-# Define the paths to check
-SPEC_CHECK_PATH="$METADATA_DIR/spec.txt"
-FEATURE_LIST_CHECK_PATH="$METADATA_DIR/feature_list.json"
-
-# Iteration transcript logs
-ITERATIONS_DIR="$METADATA_DIR/iterations"
-mkdir -p "$ITERATIONS_DIR"
-
-get_next_log_index() {
-    local max=0
-    local f base num
-
-    shopt -s nullglob
-    for f in "$ITERATIONS_DIR"/*.log; do
-        base="$(basename "${f%.log}")"
-        if [[ "$base" =~ ^[0-9]+$ ]]; then
-            num=$((10#$base))
-            if (( num > max )); then
-                max=$num
-            fi
-        fi
-    done
-    shopt -u nullglob
-
-    echo $((max + 1))
-}
-
-# Function to copy artifacts to metadata directory
-copy_artifacts() {
-    local project_dir="$1"
-    local project_metadata_dir=$(find_or_create_metadata_dir "$project_dir")
-
-    echo "Copying artifacts to '$project_metadata_dir'..."
-    mkdir -p "$project_metadata_dir"
-    # Copy all artifacts contents, but don't overwrite existing files
-    for artifact in "$SCRIPT_DIR/artifacts"/*; do
-        if [[ -e "$artifact" ]]; then
-            local basename="$(basename "$artifact")"
-            if [[ ! -e "$project_metadata_dir/$basename" ]]; then
-                cp -r "$artifact" "$project_metadata_dir/"
-            fi
-        fi
-    done
-}
-
-NEXT_LOG_INDEX="$(get_next_log_index)"
-
-# Initialize failure counter
-CONSECUTIVE_FAILURES=0
-
-echo "Project directory: $PROJECT_DIR"
-
-# Function to clean logs on exit
-cleanup_logs() {
-    if [[ "$NO_CLEAN" == true ]]; then
-        echo "Skipping log cleanup (--no-clean flag set)."
-        return
-    fi
-    echo "Cleaning iteration logs..."
-    if [[ -d "$ITERATIONS_DIR" ]] && [[ -n "$(ls -A "$ITERATIONS_DIR" 2>/dev/null)" ]]; then
-        node "$SCRIPT_DIR/clean-logs.js" "$ITERATIONS_DIR" --no-backup
-        echo "Log cleanup complete."
-    fi
-}
+# -----------------------------------------------------------------------------
+# CLEANUP HANDLER
+# -----------------------------------------------------------------------------
 
 # Set trap to clean logs on script exit (both normal and interrupted)
-trap cleanup_logs EXIT
+trap 'cleanup_logs "$SCRIPT_DIR"' EXIT
 
-# Check for metadata dir/spec.txt
-if [[ -z "$MAX_ITERATIONS" ]]; then
-    echo "Running unlimited iterations (use Ctrl+C to stop)"
-    i=1
-    while true; do
-        printf -v LOG_FILE "%s/%03d.log" "$ITERATIONS_DIR" "$NEXT_LOG_INDEX"
-        NEXT_LOG_INDEX=$((NEXT_LOG_INDEX + 1))
+# -----------------------------------------------------------------------------
+# MAIN EXECUTION
+# -----------------------------------------------------------------------------
 
-        {
-            echo "Iteration $i"
-            echo "Transcript: $LOG_FILE"
-            echo "Started: $(date -Is 2>/dev/null || date)"
-            echo
+# Run the iteration cycle
+run_iteration_cycle "$MAX_ITERATIONS" "$SCRIPT_DIR"
 
-            # Check if onboarding is already complete
-            ONBOARDING_COMPLETE=false
-            if [[ -f "$FEATURE_LIST_CHECK_PATH" ]]; then
-                # Check if feature_list.json contains actual data (not just template)
-                if ! grep -q "{yyyy-mm-dd}" "$FEATURE_LIST_CHECK_PATH" && ! grep -q "{Short name of the feature}" "$FEATURE_LIST_CHECK_PATH"; then
-                    ONBOARDING_COMPLETE=true
-                fi
-            fi
+# -----------------------------------------------------------------------------
+# EXIT
+# -----------------------------------------------------------------------------
 
-            if [[ ! -f "$SPEC_CHECK_PATH" || ! -f "$FEATURE_LIST_CHECK_PATH" || "$ONBOARDING_COMPLETE" == false ]]; then
-                # Check if this is an existing codebase BEFORE copying spec
-                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$METADATA_DIR/spec.txt" || ! -f "$METADATA_DIR/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
-                    if [[ "$ONBOARDING_COMPLETE" == false ]]; then
-                        echo "Detected incomplete onboarding, resuming onboarding prompt..."
-                    else
-                        echo "Detected existing codebase, using onboarding prompt..."
-                    fi
-                    # Create metadata directory if it doesn't exist and copy artifacts
-                    copy_artifacts "$PROJECT_DIR"
-                    # Send onboarding prompt from project directory (don't copy spec)
-                    run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/onboarding.md" "${INIT_MODEL_ARGS[@]}"
-                else
-                    echo "Required files not found, copying spec and sending initializer prompt..."
-                    # Create metadata directory if it doesn't exist and copy artifacts
-                    copy_artifacts "$PROJECT_DIR"
-                    # Copy spec file to project directory (only if we have one)
-                    if [[ -n "$SPEC_FILE" ]]; then
-                        cp "$SPEC_FILE" "$SPEC_CHECK_PATH"
-                    fi
-                    # Send initializer prompt from project directory
-                    run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/initializer.md" "${INIT_MODEL_ARGS[@]}"
-                fi
-            else
-                echo "Required files found, sending coding prompt..."
-                # Send coding prompt from project directory
-                run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/coding.md" "${CODE_MODEL_ARGS[@]}"
-            fi
-
-            KILOCODE_EXIT_CODE=$?
-            if [[ $KILOCODE_EXIT_CODE -ne 0 ]]; then
-                # Increment failure counter
-                ((CONSECUTIVE_FAILURES++))
-                echo "aidd-k.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
-
-                # Check if we should quit or continue
-                if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
-                    echo "aidd-k.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
-                    exit "$KILOCODE_EXIT_CODE"
-                else
-                    echo "aidd-k.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
-                fi
-            else
-                # Reset failure counter on successful iteration
-                CONSECUTIVE_FAILURES=0
-            fi
-
-            echo
-            echo "--- End of iteration $i ---"
-            echo "Finished: $(date -Is 2>/dev/null || date)"
-            echo
-        } 2>&1 | tee "$LOG_FILE"
-
-        ITERATION_EXIT_CODE=${PIPESTATUS[0]}
-        if [[ $ITERATION_EXIT_CODE -ne 0 ]]; then
-            exit "$ITERATION_EXIT_CODE"
-        fi
-
-        ((i++))
-    done
-else
-    echo "Running $MAX_ITERATIONS iterations"
-    for ((i=1; i<=MAX_ITERATIONS; i++)); do
-        printf -v LOG_FILE "%s/%03d.log" "$ITERATIONS_DIR" "$NEXT_LOG_INDEX"
-        NEXT_LOG_INDEX=$((NEXT_LOG_INDEX + 1))
-
-        {
-            echo "Iteration $i of $MAX_ITERATIONS"
-            echo "Transcript: $LOG_FILE"
-            echo "Started: $(date -Is 2>/dev/null || date)"
-            echo
-
-            # Check if onboarding is already complete
-            ONBOARDING_COMPLETE=false
-            if [[ -f "$FEATURE_LIST_CHECK_PATH" ]]; then
-                # Check if feature_list.json contains actual data (not just template)
-                if ! grep -q "{yyyy-mm-dd}" "$FEATURE_LIST_CHECK_PATH" && ! grep -q "{Short name of the feature}" "$FEATURE_LIST_CHECK_PATH"; then
-                    ONBOARDING_COMPLETE=true
-                fi
-            fi
-
-            if [[ ! -f "$SPEC_CHECK_PATH" || ! -f "$FEATURE_LIST_CHECK_PATH" || "$ONBOARDING_COMPLETE" == false ]]; then
-                # Check if this is an existing codebase BEFORE copying spec
-                if [[ "$NEW_PROJECT_CREATED" == false ]] && is_existing_codebase "$PROJECT_DIR" && [[ ! -f "$METADATA_DIR/spec.txt" || ! -f "$METADATA_DIR/feature_list.json" || "$ONBOARDING_COMPLETE" == false ]]; then
-                    if [[ "$ONBOARDING_COMPLETE" == false ]]; then
-                        echo "Detected incomplete onboarding, resuming onboarding prompt..."
-                    else
-                        echo "Detected existing codebase, using onboarding prompt..."
-                    fi
-                    # Create metadata directory if it doesn't exist and copy artifacts
-                    copy_artifacts "$PROJECT_DIR"
-                    # Send onboarding prompt from project directory (don't copy spec)
-                    run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/onboarding.md" "${INIT_MODEL_ARGS[@]}"
-                else
-                    echo "Required files not found, copying spec and sending initializer prompt..."
-                    # Create metadata directory if it doesn't exist and copy artifacts
-                    copy_artifacts "$PROJECT_DIR"
-                    # Copy spec file to project directory (only if we have one)
-                    if [[ -n "$SPEC_FILE" ]]; then
-                        cp "$SPEC_FILE" "$SPEC_CHECK_PATH"
-                    fi
-                    # Send initializer prompt from project directory
-                    run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/initializer.md" "${INIT_MODEL_ARGS[@]}"
-                fi
-            else
-                echo "Required files found, sending coding prompt..."
-                # Send coding prompt from project directory
-                run_kilocode_prompt "$PROJECT_DIR" "$SCRIPT_DIR/prompts/coding.md" "${CODE_MODEL_ARGS[@]}"
-            fi
-
-            KILOCODE_EXIT_CODE=$?
-            if [[ $KILOCODE_EXIT_CODE -ne 0 ]]; then
-                # Increment failure counter
-                ((CONSECUTIVE_FAILURES++))
-                echo "aidd-k.sh: kilocode failed (exit=$KILOCODE_EXIT_CODE); this is failure #$CONSECUTIVE_FAILURES." >&2
-
-                # Check if we should quit or continue
-                if [[ $QUIT_ON_ABORT -gt 0 && $CONSECUTIVE_FAILURES -ge $QUIT_ON_ABORT ]]; then
-                    echo "aidd-k.sh: reached failure threshold ($QUIT_ON_ABORT); quitting." >&2
-                    exit "$KILOCODE_EXIT_CODE"
-                else
-                    echo "aidd-k.sh: continuing to next iteration (threshold: $QUIT_ON_ABORT)." >&2
-                fi
-            else
-                # Reset failure counter on successful iteration
-                CONSECUTIVE_FAILURES=0
-            fi
-
-            # If this is not the last iteration, add a separator
-            if [[ $i -lt $MAX_ITERATIONS ]]; then
-                echo
-                echo "--- End of iteration $i ---"
-                echo "Finished: $(date -Is 2>/dev/null || date)"
-                echo
-            else
-                echo
-                echo "Finished: $(date -Is 2>/dev/null || date)"
-                echo
-            fi
-        } 2>&1 | tee "$LOG_FILE"
-
-        ITERATION_EXIT_CODE=${PIPESTATUS[0]}
-        if [[ $ITERATION_EXIT_CODE -ne 0 ]]; then
-            exit "$ITERATION_EXIT_CODE"
-        fi
-    done
-fi
+# Exit with success
+exit $EXIT_SUCCESS
